@@ -5,6 +5,7 @@ var parse = require('json-parse-errback')
 var protocol = require('proseline-protocol')
 var runParallel = require('run-parallel')
 var runWaterfall = require('run-waterfall')
+var sodium = require('sodium-native')
 var uuid = require('uuid')
 
 module.exports = function (configuration) {
@@ -18,13 +19,33 @@ module.exports = function (configuration) {
     // Invitation
     var discoveryKeysStream = plex.createSharedStream('discoveryKeys')
     var invitationStream = protocol.Invitation()
+    invitationStream.on('invitation', function (envelope) {
+      var publicKey = envelope.publicKey
+      var secretKey = envelope.message.secretKey
+      getUser(s3, publicKey, function (error, user) {
+        if (error) return log.error(error)
+        if (!user.active) return log.info({user}, 'inactive user')
+        var discoveryKey = hashHexString(secretKey)
+        runParallel([
+          function (done) {
+            putProjectSecretKey(s3, discoveryKey, secretKey, done)
+          },
+          function (done) {
+            putProjectUser(s3, discoveryKey, publicKey, done)
+          },
+          function (done) {
+            putUserProject(s3, discoveryKey, publicKey, done)
+          }
+        ])
+      })
+    })
     invitationStream
       .pipe(discoveryKeysStream)
       .pipe(invitationStream)
 
     // Replication
     plex.on('stream', function (sharedStream, discoveryKey) {
-      getSecretKey(discoveryKey, function (error, secretKey) {
+      getProjectSecretKey(discoveryKey, function (error, secretKey) {
         if (error) {
           log.error({discoveryKey}, error)
           return sharedStream.destroy()
@@ -59,7 +80,7 @@ function makeReplicationStream (options) {
   var requestedFromPeer = []
 
   replication.once('handshake', function (callback) {
-    listPublicKeys(s3, discoveryKey, function (error, publicKeys) {
+    listProjectUsers(s3, discoveryKey, function (error, publicKeys) {
       if (error) return callback(error)
       runParallel(publicKeys.map(function (publicKey) {
         return function (done) {
@@ -136,8 +157,12 @@ function makeReplicationStream (options) {
 
 var DELIMITER = '/'
 
-function listPublicKeys (s3, discoveryKey, callback) {
-  var prefix = `projects/${discoveryKey}/publicKeys/`
+function projectKey (discoveryKey) {
+  return `projects/${discoveryKey}`
+}
+
+function listProjectUsers (s3, discoveryKey, callback) {
+  var prefix = `${projectKey(discoveryKey)}/publicKeys/`
   recurse(false, callback)
   function recurse (marker, done) {
     var options = {Delimiter: DELIMITER, Prefix: prefix}
@@ -158,10 +183,17 @@ function listPublicKeys (s3, discoveryKey, callback) {
   }
 }
 
+function envelopeKey (discoveryKey, publicKey, index) {
+  return (
+    `${projectKey(discoveryKey)}` +
+    `/envelopes/${publicKey}/${indices.stringify(index)}`
+  )
+}
+
 function getLastIndex (s3, discoveryKey, publicKey, callback) {
   s3.listObjects({
     Delimiter: DELIMITER,
-    Prefix: `projects/${discoveryKey}/envelopes/${publicKey}/`,
+    Prefix: `${projectKey(discoveryKey)}/envelopes/${publicKey}/`,
     MaxKeys: 1
   }, function (error, data) {
     if (error) return callback(error)
@@ -170,14 +202,6 @@ function getLastIndex (s3, discoveryKey, publicKey, callback) {
     var key = contents[0].split(DELIMITER)[4]
     callback(null, indices.parse(key))
   })
-}
-
-function envelopeKey (discoveryKey, publicKey, index) {
-  return (
-    `projects/${discoveryKey}` +
-    `/envelopes/${publicKey}` +
-    `/${indices.stringify(index)}`
-  )
 }
 
 function getEnvelope (s3, discoveryKey, publicKey, index, callback) {
@@ -207,11 +231,15 @@ function putEnvelope (s3, envelope, callback) {
   })
 }
 
-function getSecretKey (s3, discoveryKey, callback) {
+function projectSecretKeyKey (discoveryKey) {
+  return `${projectKey(discoveryKey)}/secretKey`
+}
+
+function getProjectSecretKey (s3, discoveryKey, callback) {
   runWaterfall([
     function (done) {
       s3.getObject({
-        Key: `projects/{discoveryKey}`
+        Key: projectSecretKeyKey(discoveryKey)
       }, function (error, data) {
         if (error) return done(error)
         done(null, data.Body)
@@ -219,4 +247,72 @@ function getSecretKey (s3, discoveryKey, callback) {
     },
     parse
   ], callback)
+}
+
+function putProjectSecretKey (s3, discoveryKey, secretKey, callback) {
+  s3.putObject({
+    Key: projectSecretKeyKey(discoveryKey),
+    Body: Buffer.from(JSON.stringify(secretKey))
+  }, function (error) {
+    if (error) return callback(error)
+    callback()
+  })
+}
+
+function projectUserKey (discoveryKey, publicKey) {
+  return `${projectKey(discoveryKey)}/users/${publicKey}`
+}
+
+function putProjectUser (s3, discoveryKey, publicKey, callback) {
+  s3.putObject({
+    Key: projectUserKey(discoveryKey, publicKey),
+    Body: Buffer.from(JSON.stringify({
+      date: new Date().toISOString()
+    }))
+  }, function (error) {
+    if (error) return callback(error)
+    callback()
+  })
+}
+
+function userProjectKey (s3, discoveryKey, publicKey) {
+  return `${userKey(publicKey)}/projects/${discoveryKey}`
+}
+
+function putUserProject (s3, discoveryKey, publicKey, callback) {
+  s3.putObject({
+    Key: userProjectKey(discoveryKey, publicKey),
+    Body: Buffer.from(JSON.stringify({
+      date: new Date().toISOString()
+    }))
+  }, function (error) {
+    if (error) return callback(error)
+    callback()
+  })
+}
+
+function userKey (publicKey) {
+  return `users/${publicKey}`
+}
+
+function getUser (s3, publicKey, callback) {
+  runWaterfall([
+    function (done) {
+      s3.getObject({
+        Key: userKey(publicKey)
+      }, function (error, data) {
+        if (error) return done(error)
+        done(null, data.Body)
+      })
+    },
+    parse
+  ], callback)
+}
+
+function hashHexString (hex) {
+  assert(typeof hex === 'string')
+  assert(hex.length > 0)
+  var digest = Buffer.alloc(sodium.crypto_generichash_BYTES)
+  sodium.crypto_generichash(digest, Buffer.from(hex, 'hex'))
+  return digest.toString('hex')
 }
