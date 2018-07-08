@@ -218,13 +218,16 @@ function getEnvelope (s3, discoveryKey, publicKey, index, callback) {
   ], callback)
 }
 
+var ServerSideEncryption = 'AES256'
+
 function putEnvelope (s3, envelope, callback) {
   var publicKey = envelope.publicKey
   var index = envelope.message.index
   var discoveryKey = envelope.message.project
   s3.putObject({
     Key: envelopeKey(discoveryKey, publicKey, index),
-    Body: Buffer.from(JSON.stringify(envelope))
+    Body: Buffer.from(JSON.stringify(envelope)),
+    ServerSideEncryption
   }, function (error) {
     if (error) return callback(error)
     callback()
@@ -252,7 +255,8 @@ function getProjectSecretKey (s3, discoveryKey, callback) {
 function putProjectSecretKey (s3, discoveryKey, secretKey, callback) {
   s3.putObject({
     Key: projectSecretKeyKey(discoveryKey),
-    Body: Buffer.from(JSON.stringify(secretKey))
+    Body: Buffer.from(JSON.stringify(secretKey)),
+    ServerSideEncryption
   }, function (error) {
     if (error) return callback(error)
     callback()
@@ -268,7 +272,8 @@ function putProjectUser (s3, discoveryKey, publicKey, callback) {
     Key: projectUserKey(discoveryKey, publicKey),
     Body: Buffer.from(JSON.stringify({
       date: new Date().toISOString()
-    }))
+    })),
+    ServerSideEncryption
   }, function (error) {
     if (error) return callback(error)
     callback()
@@ -284,7 +289,8 @@ function putUserProject (s3, discoveryKey, publicKey, callback) {
     Key: userProjectKey(discoveryKey, publicKey),
     Body: Buffer.from(JSON.stringify({
       date: new Date().toISOString()
-    }))
+    })),
+    ServerSideEncryption
   }, function (error) {
     if (error) return callback(error)
     callback()
