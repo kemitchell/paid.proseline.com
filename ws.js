@@ -85,7 +85,10 @@ function makeReplicationStream (options) {
       runParallel(publicKeys.map(function (publicKey) {
         return function (done) {
           getLastIndex(discoveryKey, publicKey, function (error, index) {
-            if (error) return log.error(error)
+            if (error) {
+              log.error(error)
+              return done()
+            }
             var offer = {publicKey, index}
             var requestIndex = requestedFromPeer
               .findIndex(function (request) {
