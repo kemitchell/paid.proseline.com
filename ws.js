@@ -208,33 +208,24 @@ function getLastIndex (s3, discoveryKey, publicKey, callback) {
 }
 
 function getEnvelope (s3, discoveryKey, publicKey, index, callback) {
-  runWaterfall([
-    function (done) {
-      s3.getObject({
-        Key: envelopeKey(discoveryKey, publicKey, index)
-      }, function (error, data) {
-        if (error) return done(error)
-        done(null, data.Body)
-      })
-    },
-    parse
-  ], callback)
+  getJSONObject(
+    s3, envelopeKey(discoveryKey, publicKey, index), callback
+  )
 }
 
 var ServerSideEncryption = 'AES256'
 
 function putEnvelope (s3, envelope, callback) {
-  var publicKey = envelope.publicKey
-  var index = envelope.message.index
-  var discoveryKey = envelope.message.project
-  s3.putObject({
-    Key: envelopeKey(discoveryKey, publicKey, index),
-    Body: Buffer.from(JSON.stringify(envelope)),
-    ServerSideEncryption
-  }, function (error) {
-    if (error) return callback(error)
-    callback()
-  })
+  putJSONObject(
+    s3,
+    envelopeKey(
+      envelope.message.project,
+      envelope.publicKey,
+      envelope.message.index
+    ),
+    envelope,
+    callback
+  )
 }
 
 function projectSecretKeyKey (discoveryKey) {
@@ -242,28 +233,13 @@ function projectSecretKeyKey (discoveryKey) {
 }
 
 function getProjectSecretKey (s3, discoveryKey, callback) {
-  runWaterfall([
-    function (done) {
-      s3.getObject({
-        Key: projectSecretKeyKey(discoveryKey)
-      }, function (error, data) {
-        if (error) return done(error)
-        done(null, data.Body)
-      })
-    },
-    parse
-  ], callback)
+  getJSONObject(s3, projectSecretKeyKey(discoveryKey), callback)
 }
 
 function putProjectSecretKey (s3, discoveryKey, secretKey, callback) {
-  s3.putObject({
-    Key: projectSecretKeyKey(discoveryKey),
-    Body: Buffer.from(JSON.stringify(secretKey)),
-    ServerSideEncryption
-  }, function (error) {
-    if (error) return callback(error)
-    callback()
-  })
+  putJSONObject(
+    s3, projectSecretKeyKey(discoveryKey), secretKey, callback
+  )
 }
 
 function projectUserKey (discoveryKey, publicKey) {
@@ -271,16 +247,12 @@ function projectUserKey (discoveryKey, publicKey) {
 }
 
 function putProjectUser (s3, discoveryKey, publicKey, callback) {
-  s3.putObject({
-    Key: projectUserKey(discoveryKey, publicKey),
-    Body: Buffer.from(JSON.stringify({
-      date: new Date().toISOString()
-    })),
-    ServerSideEncryption
-  }, function (error) {
-    if (error) return callback(error)
-    callback()
-  })
+  putJSONObject(
+    s3,
+    projectUserKey(discoveryKey, publicKey),
+    {date: new Date().toISOString()},
+    callback
+  )
 }
 
 function userProjectKey (s3, discoveryKey, publicKey) {
@@ -288,16 +260,12 @@ function userProjectKey (s3, discoveryKey, publicKey) {
 }
 
 function putUserProject (s3, discoveryKey, publicKey, callback) {
-  s3.putObject({
-    Key: userProjectKey(discoveryKey, publicKey),
-    Body: Buffer.from(JSON.stringify({
-      date: new Date().toISOString()
-    })),
-    ServerSideEncryption
-  }, function (error) {
-    if (error) return callback(error)
-    callback()
-  })
+  putJSONObject(
+    s3,
+    userProjectKey(discoveryKey, publicKey),
+    {date: new Date().toISOString()},
+    callback
+  )
 }
 
 function userKey (publicKey) {
@@ -305,17 +273,7 @@ function userKey (publicKey) {
 }
 
 function getUser (s3, publicKey, callback) {
-  runWaterfall([
-    function (done) {
-      s3.getObject({
-        Key: userKey(publicKey)
-      }, function (error, data) {
-        if (error) return done(error)
-        done(null, data.Body)
-      })
-    },
-    parse
-  ], callback)
+  getJSONObject(s3, userKey(publicKey), callback)
 }
 
 function hashHexString (hex) {
@@ -324,4 +282,34 @@ function hashHexString (hex) {
   var digest = Buffer.alloc(sodium.crypto_generichash_BYTES)
   sodium.crypto_generichash(digest, Buffer.from(hex, 'hex'))
   return digest.toString('hex')
+}
+
+function getJSONObject (s3, key, callback) {
+  assert(s3)
+  assert.equal(typeof key, 'string')
+  assert.equal(typeof callback, 'function')
+  runWaterfall([
+    function (done) {
+      s3.getObject({Key: key}, function (error, data) {
+        if (error) return done(error)
+        done(null, data.Body)
+      })
+    },
+    parse
+  ], callback)
+}
+
+function putJSONObject (s3, key, value, callback) {
+  assert(s3)
+  assert.equal(typeof key, 'string')
+  assert(value)
+  assert.equal(typeof callback, 'function')
+  s3.putObject({
+    Key: key,
+    Body: Buffer.from(JSON.stringify(value)),
+    ServerSideEncryption
+  }, function (error) {
+    if (error) return callback(error)
+    callback()
+  })
 }
