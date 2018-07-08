@@ -74,12 +74,12 @@ function makeReplicationStream (options) {
   var secretKey = options.secretKey
   var discoveryKey = options.discoveryKey
   var log = options.log
-  var replication = new protocol.Replication(secretKey)
   var s3 = options.s3
 
+  var returned = new protocol.Replication(secretKey)
   var requestedFromPeer = []
 
-  replication.once('handshake', function (callback) {
+  returned.once('handshake', function (callback) {
     listProjectUsers(s3, discoveryKey, function (error, publicKeys) {
       if (error) return callback(error)
       runParallel(publicKeys.map(function (publicKey) {
@@ -106,20 +106,20 @@ function makeReplicationStream (options) {
   })
 
   // When our peer requests an envelope...
-  replication.on('request', function (request, callback) {
+  returned.on('request', function (request, callback) {
     var publicKey = request.publicKey
     var index = request.index
     getEnvelope(
       s3, discoveryKey, publicKey, index,
       function (error, envelope) {
         if (error) return log.error(error)
-        replication.envelope(envelope, callback)
+        returned.envelope(envelope, callback)
       }
     )
   })
 
   // When our peer offers an envelope...
-  replication.on('offer', function (offer, callback) {
+  returned.on('offer', function (offer, callback) {
     var publicKey = offer.publicKey
     var offeredIndex = offer.index
     getLastIndex(s3, discoveryKey, publicKey, function (error, last) {
@@ -140,7 +140,7 @@ function makeReplicationStream (options) {
   })
 
   // When our peer sends an envelope...
-  replication.on('envelope', function (envelope, callback) {
+  returned.on('envelope', function (envelope, callback) {
     if (envelope.messsage.project !== discoveryKey) {
       log.error({envelope, discoveryKey}, 'project mismatch')
       return callback()
@@ -148,11 +148,11 @@ function makeReplicationStream (options) {
     putEnvelope(s3, envelope, callback)
   })
 
-  replication.handshake(function () {
+  returned.handshake(function () {
     log.info('sent handshake')
   })
 
-  return replication
+  return returned
 }
 
 var DELIMITER = '/'
