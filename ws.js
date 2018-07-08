@@ -97,11 +97,11 @@ function makeReplicationStream (options) {
                   request.index === offer.index
                 )
               })
-            if (requestIndex === -1) {
-              return protocol.offer(offer, done)
+            if (requestIndex !== -1) {
+              requestedFromPeer.splice(requestIndex, 1)
+              return done()
             }
-            requestedFromPeer.splice(requestIndex, 1)
-            done()
+            protocol.offer(offer, done)
           })
         }
       }), callback)
