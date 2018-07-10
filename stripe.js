@@ -6,29 +6,33 @@ var stripe = require('stripe')
 
 var PRIVATE = process.env.STRIPE_PRIVATE_KEY
 var PLAN = process.env.STRIPE_PLAN
+var WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET
+
+var client = stripe(PRIVATE)
 
 module.exports = {
   createCustomer,
   getCustomer,
   subscribe,
   unsubscribe,
-  getActiveSubscription
+  getActiveSubscription,
+  validSignature
 }
 
 function createCustomer (email, token, callback) {
-  stripe(PRIVATE)
+  client
     .customers
     .create({email, token}, callback)
 }
 
 function getCustomer (customerID, callback) {
-  stripe(PRIVATE)
+  client
     .customers
     .retrieve(customerID, callback)
 }
 
 function subscribe (customerID, token, callback) {
-  stripe(PRIVATE)
+  client
     .subscriptions
     .create({
       customer: customerID,
@@ -37,7 +41,7 @@ function subscribe (customerID, token, callback) {
 }
 
 function unsubscribe (subscriptionID, callback) {
-  stripe(PRIVATE)
+  client
     .subscriptions
     .del(subscriptionID, callback)
 }
@@ -58,4 +62,19 @@ function getActiveSubscription (customerID, callback) {
     }
     return callback(null, active[0])
   })
+}
+
+function validSignature (request) {
+  try {
+    client
+      .webhooks
+      .constructEvent(
+        request.body,
+        request.headers['stripe-signature'],
+        WEBHOOK_SECRET
+      )
+  } catch (error) {
+    return false
+  }
+  return true
 }

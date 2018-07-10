@@ -9,6 +9,7 @@ var pump = require('pump')
 var runSeries = require('run-series')
 var runWaterfall = require('run-waterfall')
 var s3 = require('./s3')
+var simpleConcat = require('simple-concat')
 var sodium = require('sodium-native')
 var stringify = require('fast-json-stable-stringify')
 var stripe = require('./stripe')
@@ -17,6 +18,7 @@ var uuid = require('uuid')
 
 var STYLESHEET = '/styles.css'
 var STYLES = fs.readFileSync('styles.css')
+var STRIPE_WEBHOOK = process.env.STRIPE_WEBHOOK
 
 var ajv = new AJV()
 
@@ -42,6 +44,7 @@ module.exports = function (serverLog) {
       return response.end()
     }
     if (pathname === STYLESHEET) return styles(request, response)
+    if (pathname === STRIPE_WEBHOOK) return webhook(request, response)
     return notFound(request, response)
   }
 }
@@ -403,4 +406,28 @@ function serverErrorPage () {
 function styles (request, response) {
   response.setHeader('Content-Type', 'text/css')
   return response.end(STYLES)
+}
+
+function webhook (request, response) {
+  if (!stripe.validSignature(request)) {
+    response.statusCode = 400
+    response.end()
+  }
+  var log = request.log
+  log.info('valid signature')
+  runWaterfall([
+    function (done) {
+      simpleConcat(request, done)
+    },
+    parse,
+    function (body, done) {
+      stripe.putWebhook(body, done)
+    }
+  ], function (error, objectID) {
+    if (error) {
+      response.statusCode = 400
+      return response.end()
+    }
+    log.info({objectID}, 'logged')
+  })
 }

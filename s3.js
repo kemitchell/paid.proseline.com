@@ -3,6 +3,7 @@ var aws = require('aws-sdk')
 var indices = require('./indices')
 var parse = require('json-parse-errback')
 var runWaterfall = require('run-waterfall')
+var uuid = require('uuid')
 
 var DELIMITER = '/'
 
@@ -146,6 +147,14 @@ exports.getCapability = function (capability, callback) {
 
 exports.deleteCapability = function (capability, callback) {
   s3.deleteObject({Key: capabilityKey(capability)}, callback)
+}
+
+exports.putWebhook = function (data, callback) {
+  var id = new Date().toISOString() + '-' + uuid.v4()
+  putJSONObject(`webhooks/${id}`, data, function (error) {
+    if (error) return callback(error)
+    callback(null, id)
+  })
 }
 
 function getJSONObject (key, callback) {
