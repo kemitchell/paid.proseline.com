@@ -1,11 +1,11 @@
 {
   "type": "object",
   "properties": {
-    "active": {
-      "type": "boolean"
+    "customerID": {
+      "type": "string"
     }
   },
   "required": [
-    "active"
+    "customerID"
   ]
 }

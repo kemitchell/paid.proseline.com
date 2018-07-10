@@ -1,0 +1,51 @@
+{
+  "type": "object",
+  "properties": {
+    "publicKey": {
+      "title": "Signing Public Key",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "maxLength": 64
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{128}$",
+      "maxLength": 128
+    },
+    "message": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "title": "Stripe Payment Token",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "email": {
+          "title": "E-Mail Address",
+          "type": "string",
+          "format": "email",
+          "maxLength": 254
+        },
+        "date": {
+          "title": "Order Date",
+          "type": "string",
+          "format": "date-time",
+          "maxLength": 20
+        }
+      },
+      "required": [
+        "token",
+        "email",
+        "date"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "publicKey",
+    "signature",
+    "message"
+  ],
+  "additionalProperties": false
+}

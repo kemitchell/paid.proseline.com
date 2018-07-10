@@ -1,15 +1,21 @@
 {
   "private": true,
   "dependencies": {
+    "ajv": "^6.5.2",
     "aws-sdk": "^2.270.1",
+    "busboy": "^0.2.14",
+    "fast-json-stable-stringify": "^2.0.0",
+    "form-data": "^2.3.2",
     "json-parse-errback": "^2.0.1",
     "multiplex": "^6.7.0",
     "pino": "^4.17.3",
     "pino-http": "^3.2.2",
     "proseline-protocol": "^2.0.0",
     "run-parallel": "^1.1.9",
+    "run-series": "^1.1.8",
     "run-waterfall": "^1.1.6",
     "sodium-native": "^2.1.6",
+    "stripe": "^6.2.1",
     "uuid": "^3.3.2",
     "ws": "^5.2.1",
     "zero-fill": "^2.2.3"
