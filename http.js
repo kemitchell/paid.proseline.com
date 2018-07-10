@@ -45,8 +45,10 @@ function homepage (request, response) {
   response.setHeader('Content-Type', 'text/html')
   response.end(messagePage(
     null,
-    'Visit <a href=/cancel>the cancel page</a> ' +
-    'to cancel your subscription.'
+    [
+      'Visit <a href=/cancel>the cancel page</a> ' +
+      'to cancel your subscription.'
+    ]
   ))
 }
 
