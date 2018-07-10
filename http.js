@@ -25,19 +25,25 @@ module.exports = function (serverLog) {
   var log = pinoHTTP({logger: serverLog, genReqId: uuid.v4})
   return function (request, response) {
     log(request, response)
+    var method = request.method
     var parsed = url.parse(request.url, true)
     var pathname = parsed.pathname
     request.query = parsed.query
-    // TODO: Move query and method routing logic up here.
     if (pathname === '/') return homepage(request, response)
     if (pathname === '/register') return register(request, response)
     if (pathname === '/subscribe') return subscribe(request, response)
-    if (pathname === '/cancel') return cancel(request, response)
-    if (pathname === STYLESHEET) {
-      response.setHeader('Content-Type', 'text/css')
-      return response.end(STYLES)
+    if (pathname === '/cancel') {
+      if (method === 'POST') return postCancel(request, response)
+      if (method === 'GET') {
+        var capability = request.query.capability
+        if (capability) return finishCancel(request, response)
+        return startCancel(request, response)
+      }
+      response.statusCode = 405
+      return response.end()
     }
-    notFound(request, response)
+    if (pathname === STYLESHEET) return styles(request, response)
+    return notFound(request, response)
   }
 }
 
@@ -234,18 +240,6 @@ function subscribe (request, response) {
   }
 }
 
-function cancel (request, response) {
-  var method = request.method
-  if (method === 'POST') return route(postCancel)
-  if (method === 'GET') return route(getCancel)
-  response.statusCode = 405
-  response.end()
-
-  function route (handler) {
-    handler(request, response)
-  }
-}
-
 function postCancel (request, response) {
   var log = request.log
   parseBody(function (error, email) {
@@ -306,9 +300,7 @@ function postCancel (request, response) {
   }
 }
 
-function getCancel (request, response) {
-  var capability = request.query.capability
-  if (capability) return finalizeCancellation.apply(null, arguments)
+function startCancel (request, response) {
   response.setHeader('Content-Type', 'text/html')
   response.end(`
 <!doctype html>
@@ -334,8 +326,12 @@ function getCancel (request, response) {
   `)
 }
 
-function finalizeCancellation (request, response) {
+function finishCancel (request, response) {
   var capability = request.query.capability
+  if (!capability || !validCapability(capability)) {
+    response.statusCode = 400
+    return response.end()
+  }
   var log = request.log
   runWaterfall([
     function getCapability (done) {
@@ -411,4 +407,9 @@ function serverErrorPage () {
       'responding to your request.'
     ]
   )
+}
+
+function styles (request, response) {
+  response.setHeader('Content-Type', 'text/css')
+  return response.end(STYLES)
 }
