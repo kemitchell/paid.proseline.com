@@ -31,7 +31,7 @@ module.exports = function (serverLog) {
     // TODO: Move query and method routing logic up here.
     if (pathname === '/') return homepage(request, response)
     if (pathname === '/register') return register(request, response)
-    if (pathname === '/subscribe') return confirm(request, response)
+    if (pathname === '/subscribe') return subscribe(request, response)
     if (pathname === '/cancel') return cancel(request, response)
     if (pathname === STYLESHEET) {
       response.setHeader('Content-Type', 'text/css')
@@ -185,7 +185,7 @@ function notFound (request, response) {
   ))
 }
 
-function confirm (request, response) {
+function subscribe (request, response) {
   var log = request.log
   var capability = request.query.capability
   if (!capability || !validCapability(capability)) {
