@@ -1,6 +1,7 @@
 var AJV = require('ajv')
 var Busboy = require('busboy')
 var assert = require('assert')
+var concatLimit = require('./concat-limit')
 var fs = require('fs')
 var parse = require('json-parse-errback')
 var pinoHTTP = require('pino-http')
@@ -58,90 +59,82 @@ function homepage (request, response) {
 
 var validOrder = ajv.compile(require('./order.json'))
 
-var POST_BODY_LIMIT = 512
-
 function register (request, response) {
   var log = request.log
-  var chunks = []
-  var bytesReceived = 0
-  request
-    .on('data', function (chunk) {
-      chunks.push(chunk)
-      bytesReceived += chunk.length
-      if (bytesReceived > POST_BODY_LIMIT) {
+  runWaterfall([
+    function (done) {
+      concatLimit(request, 512, done)
+    },
+    parse
+  ], function (error, order) {
+    if (error) {
+      if (error.limit) {
+        // TODO: Double check stream calls for 413.
         response.statusCode = 413
         response.end()
-        request.abort()
+      } else return serverError(error)
+    }
+    if (!validOrder(order)) {
+      return invalidRequest(response, 'invalid order')
+    }
+    log.info('invalid order')
+    if (!validSignature(order)) {
+      return invalidRequest(response, 'invalid signature')
+    }
+    log.info('valid signature')
+    if (!unexpired(order)) {
+      return invalidRequest(response, 'order expired')
+    }
+    log.info('unexpired')
+    var email = order.message.email
+    var token = order.message.token
+    s3.getUser(email, function (error, user) {
+      if (error) return serverError(error, response)
+
+      // There is no Stripe customer for the e-mail address.
+      if (!user) {
+        return runWaterfall([
+          function (done) {
+            stripe.createCustomer(email, token, done)
+          },
+          function (customerID, done) {
+            s3.putUser({active: false, customerID}, done)
+          }
+        ], function (error) {
+          if (error) return serverError(error)
+          sendEMail(customerID)
+        })
+      }
+
+      // There is already a Stripe customer for the e-mail address.
+      var customerID = user.customerID
+      stripe.getActiveSubscription(
+        customerID,
+        function (error, subscription) {
+          if (error) return serverError(error, response)
+          if (subscription) {
+            return invalidRequest(response, 'already subscribed')
+          }
+          sendEMail(customerID)
+        }
+      )
+
+      function sendEMail (customerID) {
+        var capability = randomCapability()
+        runSeries([
+          function (done) {
+            s3.putCapability(email, customerID, capability, done)
+          },
+          function (done) {
+            email.confirmation(request.log, email, capability, done)
+          }
+        ], function (error) {
+          if (error) return serverError(error)
+          response.end({message: 'e-mail sent'})
+        })
       }
     })
-    .once('error', function (error) {
-      log.error(error)
-    })
-    .once('end', function () {
-      parse(Buffer.concat(chunks), function (error, order) {
-        if (error) return invalidRequest(response)
-        if (!validOrder(order)) {
-          return invalidRequest(response, 'invalid order')
-        }
-        log.info('invalid order')
-        if (!validSignature(order)) {
-          return invalidRequest(response, 'invalid signature')
-        }
-        log.info('valid signature')
-        if (!unexpired(order)) {
-          return invalidRequest(response, 'order expired')
-        }
-        log.info('unexpired')
-        var email = order.message.email
-        var token = order.message.token
-        s3.getUser(email, function (error, user) {
-          if (error) return serverError(error, response)
-
-          // There is no Stripe customer for the e-mail address.
-          if (!user) {
-            return runWaterfall([
-              function (done) {
-                stripe.createCustomer(email, token, done)
-              },
-              function (customerID, done) {
-                s3.putUser({active: false, customerID}, done)
-              }
-            ], function (error) {
-              if (error) return serverError(error)
-              sendEMail(customerID)
-            })
-          }
-
-          // There is already a Stripe customer for the e-mail address.
-          var customerID = user.customerID
-          stripe.getActiveSubscription(
-            customerID,
-            function (error, subscription) {
-              if (error) return serverError(error, response)
-              if (subscription) {
-                return invalidRequest(response, 'already subscribed')
-              }
-              sendEMail(customerID)
-            }
-          )
-
-          function sendEMail (customerID) {
-            var capability = randomCapability()
-            runSeries([
-              function (done) {
-                s3.putCapability(email, customerID, capability, done)
-              },
-              function (done) {
-                email.confirmation(request.log, email, capability, done)
-              }
-            ], function (error) {
-              if (error) return serverError(error)
-              response.end({message: 'e-mail sent'})
-            })
-          }
-        })
-      })
-    })
+  })
 
   function invalidRequest (response, message) {
     response.end(JSON.stringify({error: message}))
