@@ -217,8 +217,6 @@ function getEnvelope (s3, discoveryKey, publicKey, index, callback) {
   )
 }
 
-var ServerSideEncryption = 'AES256'
-
 function putEnvelope (s3, envelope, callback) {
   putJSONObject(
     s3,
@@ -310,6 +308,8 @@ function getJSONObject (s3, key, callback) {
     parse
   ], callback)
 }
+
+var ServerSideEncryption = 'AES256'
 
 function putJSONObject (s3, key, value, callback) {
   assert(s3)
