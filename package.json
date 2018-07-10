@@ -20,5 +20,10 @@
     "ws": "^5.2.1",
     "zero-fill": "^2.2.3"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "standard": "^11.0.1"
+  },
+  "scripts": {
+    "lint": "standard"
+  }
 }
