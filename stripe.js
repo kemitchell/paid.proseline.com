@@ -1,7 +1,6 @@
 var data = require('./s3')
 var stripe = require('stripe')
 
-// TODO source for customer creation
 // TODO: Implement Stripe webhook for payment failure.
 // var SECRET = process.env.STRIPE_WEBHOOK_SECRET
 
