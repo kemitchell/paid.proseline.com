@@ -22,9 +22,11 @@
     "zero-fill": "^2.2.3"
   },
   "devDependencies": {
+    "licensee": "^4.5.0",
     "standard": "^11.0.1"
   },
   "scripts": {
-    "lint": "standard"
+    "lint": "standard",
+    "licenses": "licensee --errors-only"
   }
 }
