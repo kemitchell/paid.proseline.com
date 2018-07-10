@@ -22,21 +22,25 @@ module.exports = function (configuration) {
     invitationStream.on('invitation', function (envelope) {
       var publicKey = envelope.publicKey
       var secretKey = envelope.message.secretKey
-      getUser(s3, publicKey, function (error, user) {
+      getPublicKey(s3, publicKey, function (error, record) {
         if (error) return log.error(error)
-        if (!user.active) return log.info({user}, 'inactive user')
-        var discoveryKey = hashHexString(secretKey)
-        runParallel([
-          function (done) {
-            putProjectSecretKey(s3, discoveryKey, secretKey, done)
-          },
-          function (done) {
-            putProjectUser(s3, discoveryKey, publicKey, done)
-          },
-          function (done) {
-            putUserProject(s3, discoveryKey, publicKey, done)
-          }
-        ])
+        var userID = record.userID
+        getUser(s3, userID, function (error, user) {
+          if (error) return log.error(error)
+          if (!user.active) return log.info({user}, 'inactive user')
+          var discoveryKey = hashHexString(secretKey)
+          runParallel([
+            function (done) {
+              putProjectSecretKey(s3, discoveryKey, secretKey, done)
+            },
+            function (done) {
+              putProjectUser(s3, discoveryKey, userID, done)
+            },
+            function (done) {
+              putUserProject(s3, discoveryKey, publicKey, done)
+            }
+          ])
+        })
       })
     })
     invitationStream
@@ -80,7 +84,7 @@ function makeReplicationStream (options) {
   var requestedFromPeer = []
 
   returned.once('handshake', function (callback) {
-    listProjectUsers(s3, discoveryKey, function (error, publicKeys) {
+    listProjectPublicKeys(s3, discoveryKey, function (error, publicKeys) {
       if (error) return callback(error)
       runParallel(publicKeys.map(function (publicKey) {
         return function (done) {
@@ -164,7 +168,7 @@ function projectKey (discoveryKey) {
   return `projects/${discoveryKey}`
 }
 
-function listProjectUsers (s3, discoveryKey, callback) {
+function listProjectPublicKeys (s3, discoveryKey, callback) {
   var prefix = `${projectKey(discoveryKey)}/publicKeys/`
   recurse(false, callback)
   function recurse (marker, done) {
@@ -242,38 +246,46 @@ function putProjectSecretKey (s3, discoveryKey, secretKey, callback) {
   )
 }
 
-function projectUserKey (discoveryKey, publicKey) {
-  return `${projectKey(discoveryKey)}/users/${publicKey}`
+function projectUserKey (discoveryKey, userID) {
+  return `${projectKey(discoveryKey)}/users/${userID}`
 }
 
-function putProjectUser (s3, discoveryKey, publicKey, callback) {
+function putProjectUser (s3, discoveryKey, userID, callback) {
   putJSONObject(
     s3,
-    projectUserKey(discoveryKey, publicKey),
+    projectUserKey(discoveryKey, userID),
     {date: new Date().toISOString()},
     callback
   )
 }
 
-function userProjectKey (s3, discoveryKey, publicKey) {
-  return `${userKey(publicKey)}/projects/${discoveryKey}`
+function userProjectKey (s3, discoveryKey, userID) {
+  return `${userKey(userID)}/projects/${discoveryKey}`
 }
 
-function putUserProject (s3, discoveryKey, publicKey, callback) {
+function putUserProject (s3, discoveryKey, userID, callback) {
   putJSONObject(
     s3,
-    userProjectKey(discoveryKey, publicKey),
+    userProjectKey(discoveryKey, userID),
     {date: new Date().toISOString()},
     callback
   )
 }
 
-function userKey (publicKey) {
-  return `users/${publicKey}`
+function publicKeyKey (publicKey) {
+  return `/publicKeys/${publicKey}`
 }
 
-function getUser (s3, publicKey, callback) {
-  getJSONObject(s3, userKey(publicKey), callback)
+function getPublicKey (s3, publicKey, callback) {
+  getJSONObject(s3, publicKeyKey(publicKey), callback)
+}
+
+function userKey (userID) {
+  return `users/${userID}`
+}
+
+function getUser (s3, userID, callback) {
+  getJSONObject(s3, userKey(userID), callback)
 }
 
 function hashHexString (hex) {
