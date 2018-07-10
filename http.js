@@ -31,8 +31,12 @@ module.exports = function (serverLog) {
     var pathname = parsed.pathname
     request.query = parsed.query
     if (pathname === '/') return homepage(request, response)
-    if (pathname === '/register') return register(request, response)
-    if (pathname === '/subscribe') return subscribe(request, response)
+    if (pathname === '/subscribe') {
+      if (method === 'POST') return postSubscribe(request, response)
+      if (method === 'GET') return getSubscribe(request, response)
+      response.statusCode = 405
+      return response.end()
+    }
     if (pathname === '/cancel') {
       if (method === 'POST') return postCancel(request, response)
       if (method === 'GET') {
@@ -62,7 +66,7 @@ function homepage (request, response) {
 
 var validOrder = ajv.compile(require('./order.json'))
 
-function register (request, response) {
+function postSubscribe (request, response) {
   var log = request.log
   runWaterfall([
     function (done) {
@@ -185,7 +189,7 @@ function notFound (request, response) {
   ))
 }
 
-function subscribe (request, response) {
+function getSubscribe (request, response) {
   var log = request.log
   var capability = request.query.capability
   if (!capability || !validCapability(capability)) {
