@@ -19,8 +19,6 @@ var STYLES = fs.readFileSync('styles.css')
 
 var ajv = new AJV()
 
-// TODO Read env vars directly.
-
 module.exports = function (serverLog) {
   var log = pinoHTTP({logger: serverLog, genReqId: uuid.v4})
   return function (request, response) {
