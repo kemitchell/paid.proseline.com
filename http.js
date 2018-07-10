@@ -371,9 +371,9 @@ function finalizeCancellation (request, response) {
 
 function messagePage (subtitle, message) {
   assert(Array.isArray(message))
-  assert(message.every(function (element) {
+  message.forEach(function (element) {
     assert.equal(typeof element, 'string')
-  }))
+  })
   var content = message
     .map(function (string) { return `<p>${string}</p>` })
     .join('')
