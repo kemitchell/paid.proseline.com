@@ -2,51 +2,51 @@ var FormData = require('form-data')
 var https = require('https')
 var pump = require('pump')
 
-// TODO: hostname from env var
+var KEY = process.env.MAILGUN_KEY
+var DOMAIN = process.env.MAILGUN_DOMAIN
+var FROM = process.env.MAILGUN_FROM
+var HOSTNAME = process.env.HOSTNAME
 
 exports.confirmation = function (
-  configuration, requestLog, email, capability, callback
+  requestLog, email, capability, callback
 ) {
-  send(configuration, requestLog, {
+  send(requestLog, {
     to: email,
     subject: 'Confirm Your Proseline Subscription',
-    text: [
+    paragraphs: [
       'Click this link to confirm your Proseline subscription:',
-      'https://paid.proseline.com/subscribe?capability=' + capability
-    ].join('\n\n')
+      `https://${HOSTNAME}/subscribe?capability=${capability}`
+    ]
   }, callback)
 }
 
 exports.cancel = function (
-  configuration, requestLog, email, capability, callback
+  requestLog, email, capability, callback
 ) {
-  send(configuration, requestLog, {
+  send(requestLog, {
     to: email,
     subject: 'Cancel Your Proseline Subscription',
-    text: [
+    paragraphs: [
       'Click this link to cancel your Proseline subscription:',
-      'https://paid.proseline.com/cancel?capability=' + capability
-    ].join('\n\n')
+      `https://${HOSTNAME}/cancel?capability=${capability}`
+    ]
   }, callback)
 }
 
-function send (configuration, requestLog, options, callback) {
-  var domain = configuration.email.domain
-  var key = configuration.email.key
-  var from = configuration.email.sender + '@' + domain
+function send (requestLog, options, callback) {
   var log = requestLog.child({subsystem: 'email'})
   var form = new FormData()
-  form.append('from', from)
+  form.append('from', FROM)
   form.append('to', options.to)
   form.append('subject', options.subject)
   form.append('o:dkim', 'yes')
   form.append('o:require-tls', 'yes')
-  form.append('text', options.text)
+  form.append('text', options.paragraphs.join('\n\n'))
   pump(form, https.request({
     method: 'POST',
     host: 'api.mailgun.net',
-    path: '/v3/' + domain + '/messages',
-    auth: 'api:' + key,
+    path: `/v3/${DOMAIN}/message`,
+    auth: `api:${KEY}`,
     headers: form.getHeaders()
   }, function (response) {
     var status = response.statusCode

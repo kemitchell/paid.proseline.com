@@ -1,15 +1,21 @@
 var assert = require('assert')
+var aws = require('aws-sdk')
 var indices = require('./indices')
 var parse = require('json-parse-errback')
 var runWaterfall = require('run-waterfall')
 
 var DELIMITER = '/'
 
+var s3 = new aws.S3({
+  accessKeyId: process.env.S3_ACCESS_KEY,
+  secretAccessKey: process.env.S3_SECRET_KEY
+})
+
 function projectKey (discoveryKey) {
   return `projects/${discoveryKey}`
 }
 
-exports.listProjectPublicKeys = function (s3, discoveryKey, callback) {
+exports.listProjectPublicKeys = function (discoveryKey, callback) {
   var prefix = `${projectKey(discoveryKey)}/publicKeys/`
   recurse(false, callback)
   function recurse (marker, done) {
@@ -38,7 +44,7 @@ function envelopeKey (discoveryKey, publicKey, index) {
   )
 }
 
-exports.getLastIndex = function (s3, discoveryKey, publicKey, callback) {
+exports.getLastIndex = function (discoveryKey, publicKey, callback) {
   s3.listObjects({
     Delimiter: DELIMITER,
     Prefix: `${projectKey(discoveryKey)}/envelopes/${publicKey}/`,
@@ -52,15 +58,14 @@ exports.getLastIndex = function (s3, discoveryKey, publicKey, callback) {
   })
 }
 
-exports.getEnvelope = function (s3, discoveryKey, publicKey, index, callback) {
+exports.getEnvelope = function (discoveryKey, publicKey, index, callback) {
   getJSONObject(
-    s3, envelopeKey(discoveryKey, publicKey, index), callback
+    envelopeKey(discoveryKey, publicKey, index), callback
   )
 }
 
-exports.putEnvelope = function (s3, envelope, callback) {
+exports.putEnvelope = function (envelope, callback) {
   putJSONObject(
-    s3,
     envelopeKey(
       envelope.message.project,
       envelope.publicKey,
@@ -75,13 +80,13 @@ function projectSecretKeyKey (discoveryKey) {
   return `${projectKey(discoveryKey)}/secretKey`
 }
 
-exports.getProjectSecretKey = function (s3, discoveryKey, callback) {
-  getJSONObject(s3, projectSecretKeyKey(discoveryKey), callback)
+exports.getProjectSecretKey = function (discoveryKey, callback) {
+  getJSONObject(projectSecretKeyKey(discoveryKey), callback)
 }
 
-exports.putProjectSecretKey = function (s3, discoveryKey, secretKey, callback) {
+exports.putProjectSecretKey = function (discoveryKey, secretKey, callback) {
   putJSONObject(
-    s3, projectSecretKeyKey(discoveryKey), secretKey, callback
+    projectSecretKeyKey(discoveryKey), secretKey, callback
   )
 }
 
@@ -89,22 +94,20 @@ function projectUserKey (discoveryKey, email) {
   return `${projectKey(discoveryKey)}/users/${encodeURIComponent(email)}`
 }
 
-exports.putProjectUser = function (s3, discoveryKey, email, callback) {
+exports.putProjectUser = function (discoveryKey, email, callback) {
   putJSONObject(
-    s3,
     projectUserKey(discoveryKey, email),
     {date: new Date().toISOString()},
     callback
   )
 }
 
-function userProjectKey (s3, discoveryKey, email) {
+function userProjectKey (discoveryKey, email) {
   return `${userKey(email)}/projects/${discoveryKey}`
 }
 
-exports.putUserProject = function (s3, discoveryKey, email, callback) {
+exports.putUserProject = function (discoveryKey, email, callback) {
   putJSONObject(
-    s3,
     userProjectKey(discoveryKey, email),
     {date: new Date().toISOString()},
     callback
@@ -115,37 +118,37 @@ function publicKeyKey (publicKey) {
   return `/publicKeys/${publicKey}`
 }
 
-exports.getPublicKey = function (s3, publicKey, callback) {
-  getJSONObject(s3, publicKeyKey(publicKey), callback)
+exports.getPublicKey = function (publicKey, callback) {
+  getJSONObject(publicKeyKey(publicKey), callback)
 }
 
 function userKey (email) {
   return `users/${encodeURIComponent(email)}`
 }
 
-exports.getUser = function (s3, email, callback) {
-  getJSONObject(s3, userKey(email), callback)
+exports.getUser = function (email, callback) {
+  getJSONObject(userKey(email), callback)
 }
 
 function capabilityKey (capability) {
   return `capabilities/${capability}`
 }
 
-exports.putCapability = function (s3, email, customerID, capability, callback) {
+exports.putCapability = function (email, customerID, capability, callback) {
   var date = new Date().toISOString()
   var object = {date, email, customerID}
-  putJSONObject(s3, capabilityKey(capability), object, callback)
+  putJSONObject(capabilityKey(capability), object, callback)
 }
 
-exports.getCapability = function (s3, capability, callback) {
-  getJSONObject(s3, capabilityKey(capability), callback)
+exports.getCapability = function (capability, callback) {
+  getJSONObject(capabilityKey(capability), callback)
 }
 
-exports.deleteCapability = function (s3, capability, callback) {
+exports.deleteCapability = function (capability, callback) {
   s3.deleteObject({Key: capabilityKey(capability)}, callback)
 }
 
-function getJSONObject (s3, key, callback) {
+function getJSONObject (key, callback) {
   assert(s3)
   assert.equal(typeof key, 'string')
   assert.equal(typeof callback, 'function')
@@ -162,7 +165,7 @@ function getJSONObject (s3, key, callback) {
 
 var ServerSideEncryption = 'AES256'
 
-function putJSONObject (s3, key, value, callback) {
+function putJSONObject (key, value, callback) {
   assert(s3)
   assert.equal(typeof key, 'string')
   assert(value)

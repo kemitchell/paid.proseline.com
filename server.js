@@ -1,4 +1,3 @@
-var aws = require('aws-sdk')
 var http = require('http')
 var httpHandler = require('./http')
 var pino = require('pino')
@@ -7,23 +6,13 @@ var ws = require('ws')
 
 var log = pino()
 
-var configuration = {
-  log,
-  s3: new aws.S3({
-    accessKeyId: process.env.S3_ACCESS_KEY,
-    secretAccessKey: process.env.S3_SECRET_KEY
-  }),
-  stripe: require('./env/stripe'),
-  mailgun: require('./env/mailgun')
-}
-
-var httpServer = http.createServer(httpHandler(configuration))
+var httpServer = http.createServer(httpHandler(log))
 
 /* eslint-disable no-new */
 new ws.Server({
   server: httpServer,
   perMessageDeflate: false
-}, websocketHandler(configuration))
+}, websocketHandler(log))
 /* eslint-enable no-new */
 
 function trap () {

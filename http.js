@@ -1,43 +1,43 @@
+var AJV = require('ajv')
 var Busboy = require('busboy')
 var assert = require('assert')
-var data = require('./data')
 var fs = require('fs')
-var parse = require('parse-json-errback')
+var parse = require('json-parse-errback')
 var pinoHTTP = require('pino-http')
 var pump = require('pump')
 var runSeries = require('run-series')
 var runWaterfall = require('run-waterfall')
+var s3 = require('./data')
 var sodium = require('sodium-native')
 var stringify = require('fast-json-stable-stringify')
 var stripe = require('./stripe')
 var url = require('url')
 var uuid = require('uuid')
 
-var styles = fs.readFileSync('styles.css')
+var STYLESHEET = '/styles.css'
+var STYLES = fs.readFileSync('styles.css')
+
+var ajv = new AJV()
 
 // TODO Read env vars directly.
 
-module.exports = function (configuration) {
-  var log = pinoHTTP({logger: configuration.log, genReqId: uuid.v4})
+module.exports = function (serverLog) {
+  var log = pinoHTTP({logger: serverLog, genReqId: uuid.v4})
   return function (request, response) {
     log(request, response)
     var parsed = url.parse(request.url, true)
     var pathname = parsed.pathname
     request.query = parsed.query
     // TODO: Move query and method routing logic up here.
-    if (pathname === '/') return route(homepage)
-    if (pathname === '/register') return route(register)
-    if (pathname === '/subscribe') return route(confirm)
-    if (pathname === '/cancel') return route(cancel)
-    if (pathname === '/styles.css') {
+    if (pathname === '/') return homepage(request, response)
+    if (pathname === '/register') return register(request, response)
+    if (pathname === '/subscribe') return confirm(request, response)
+    if (pathname === '/cancel') return cancel(request, response)
+    if (pathname === STYLESHEET) {
       response.setHeader('Content-Type', 'text/css')
-      response.end(styles)
+      return response.end(STYLES)
     }
-    return route(notFound)
-
-    function route (handler) {
-      handler(request, response, configuration)
-    }
+    notFound(request, response)
   }
 }
 
@@ -50,14 +50,11 @@ function homepage (request, response) {
   ))
 }
 
-var AJV = require('AJV')
-
-var ajv = new AJV()
 var validOrder = ajv.compile(require('./order.json'))
 
 var POST_BODY_LIMIT = 512
 
-function register (request, response, configuration) {
+function register (request, response) {
   var log = request.log
   var chunks = []
   var bytesReceived = 0
@@ -91,18 +88,17 @@ function register (request, response, configuration) {
         log.info('unexpired')
         var email = order.message.email
         var token = order.message.token
-        var s3 = configuration.s3
-        data.getUser(s3, email, function (error, user) {
+        s3.getUser(email, function (error, user) {
           if (error) return serverError(error, response)
 
           // There is no Stripe customer for the e-mail address.
           if (!user) {
             return runWaterfall([
               function (done) {
-                stripe.createCustomer(configuration, email, token, done)
+                stripe.createCustomer(email, token, done)
               },
               function (customerID, done) {
-                data.putUser(s3, {active: false, customerID}, done)
+                s3.putUser({active: false, customerID}, done)
               }
             ], function (error) {
               if (error) return serverError(error)
@@ -111,9 +107,9 @@ function register (request, response, configuration) {
           }
 
           // There is already a Stripe customer for the e-mail address.
-          var customerID = data.customerID
+          var customerID = user.customerID
           stripe.getActiveSubscription(
-            configuration, customerID,
+            customerID,
             function (error, subscription) {
               if (error) return serverError(error, response)
               if (subscription) {
@@ -127,10 +123,10 @@ function register (request, response, configuration) {
             var capability = randomCapability()
             runSeries([
               function (done) {
-                data.putCapability(s3, email, customerID, capability, done)
+                s3.putCapability(email, customerID, capability, done)
               },
               function (done) {
-                email.confirmation(configuration, request.log, email, capability, done)
+                email.confirmation(request.log, email, capability, done)
               }
             ], function (error) {
               if (error) return serverError(error)
@@ -187,24 +183,23 @@ function notFound (request, response) {
   ))
 }
 
-function confirm (request, response, configuration) {
+function confirm (request, response) {
   var log = request.log
   var capability = request.query.capability
   if (!capability || !validCapability(capability)) {
     response.statusCode = 400
     return response.end()
   }
-  var s3 = configuration.s3
-  data.getCapability(s3, capability, function (error, data) {
+  s3.getCapability(capability, function (error, data) {
     if (error) return serverError(error)
     var customerID = data.customerID
     log.info(data, 'capability')
     runSeries([
       logSuccess(function (done) {
-        data.deleteCapability(s3, capability, done)
+        s3.deleteCapability(capability, done)
       }, 'deleted capability'),
       logSuccess(function (done) {
-        stripe.subscribe(configuration, customerID, done)
+        stripe.subscribe(customerID, done)
       }, 'created subscription')
     ], function (error) {
       if (error) return serverError(error)
@@ -237,7 +232,7 @@ function confirm (request, response, configuration) {
   }
 }
 
-function cancel (request, response, configuration) {
+function cancel (request, response) {
   var method = request.method
   if (method === 'POST') return route(postCancel)
   if (method === 'GET') return route(getCancel)
@@ -245,22 +240,21 @@ function cancel (request, response, configuration) {
   response.end()
 
   function route (handler) {
-    handler(request, response, configuration)
+    handler(request, response)
   }
 }
 
-function postCancel (request, response, configuration) {
-  var s3 = configuration.s3
+function postCancel (request, response) {
   var log = request.log
   parseBody(function (error, email) {
     if (error) return serverError(error)
     log.info({email}, 'email')
-    data.getUser(s3, email, function (error, user) {
+    s3.getUser(email, function (error, user) {
       if (error) return serverError(error)
       if (!user) return showSuccessPage()
       var capability = randomCapability()
       email.cancel(
-        configuration, log, email, capability,
+        log, email, capability,
         function (error) {
           if (error) return serverError(error)
           showSuccessPage()
@@ -310,7 +304,7 @@ function postCancel (request, response, configuration) {
   }
 }
 
-function getCancel (request, response, configuration) {
+function getCancel (request, response) {
   var capability = request.query.capability
   if (capability) return finalizeCancellation.apply(null, arguments)
   response.setHeader('Content-Type', 'text/html')
@@ -338,18 +332,17 @@ function getCancel (request, response, configuration) {
   `)
 }
 
-function finalizeCancellation (request, response, configuration) {
+function finalizeCancellation (request, response) {
   var capability = request.query.capability
-  var s3 = configuration.s3
   var log = request.log
   runWaterfall([
     function getCapability (done) {
-      data.getCapability(s3, capability, done)
+      s3.getCapability(capability, done)
     },
     function getSubscription (capability, done) {
       log.info(capability, 'capability')
       stripe.getActiveSubscription(
-        configuration, capability.customerID, done
+        capability.customerID, done
       )
     },
     function unsubscribe (subscription, done) {
@@ -357,7 +350,7 @@ function finalizeCancellation (request, response, configuration) {
       if (!subscription) {
         return done(new Error('no active subscription'))
       }
-      stripe.unsubscribe(configuration, subscription.id, done)
+      stripe.unsubscribe(subscription.id, done)
     }
   ], function (error) {
     if (error) {
@@ -399,7 +392,7 @@ function headHTML (subtitle) {
 <head>
   <meta charset=UTF-8>
   <title>Proseline${subtitle ? ': ' + subtitle : ''}</title>
-  <link rel=stylesheet href=/styles.css>
+  <link rel=stylesheet href=${STYLESHEET}>
 </head>
   `.trim()
 }

@@ -2,6 +2,11 @@ var data = require('./data')
 var stripe = require('stripe')
 
 // TODO source for customer creation
+// TODO: Implement Stripe webhook for payment failure.
+// var SECRET = process.env.STRIPE_WEBHOOK_SECRET
+
+var PRIVATE = process.env.STRIPE_PRIVATE_KEY
+var PLAN = process.env.STRIPE_PLAN
 
 module.exports = {
   createCustomer,
@@ -11,35 +16,35 @@ module.exports = {
   getActiveSubscription
 }
 
-function createCustomer (configuration, email, token, callback) {
-  stripe(configuration.stripe.private)
+function createCustomer (email, token, callback) {
+  stripe(PRIVATE)
     .customers
     .create({email, token}, callback)
 }
 
-function getCustomer (configuration, customerID, callback) {
-  stripe(configuration.stripe.private)
+function getCustomer (customerID, callback) {
+  stripe(PRIVATE)
     .customers
     .retrieve(customerID, callback)
 }
 
-function subscribe (configuration, customerID, token, callback) {
-  stripe(configuration.stripe.private)
+function subscribe (customerID, token, callback) {
+  stripe(PRIVATE)
     .subscriptions
     .create({
       customer: customerID,
-      items: [{plan: configuration.stripe.plan}]
+      items: [{plan: PLAN}]
     }, callback)
 }
 
-function unsubscribe (configuration, subscriptionID, callback) {
-  stripe(configuration.stripe.private)
+function unsubscribe (subscriptionID, callback) {
+  stripe(PRIVATE)
     .subscriptions
     .del(subscriptionID, callback)
 }
 
-function getActiveSubscription (configuration, customerID, callback) {
-  data.getCustomer(configuration, customerID, function (error, customer) {
+function getActiveSubscription (customerID, callback) {
+  data.getCustomer(customerID, function (error, customer) {
     if (error) return callback(error)
     var subscriptions = customer.subscriptions.data
     var active = subscriptions.filter(function (subscription) {

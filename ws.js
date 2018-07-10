@@ -1,16 +1,15 @@
 var assert = require('assert')
-var data = require('./data')
 var multiplex = require('multiplex')
 var protocol = require('proseline-protocol')
 var runParallel = require('run-parallel')
+var s3 = require('./data')
 var sodium = require('sodium-native')
 var stripe = require('./stripe')
 var uuid = require('uuid')
 
-module.exports = function (configuration) {
-  var s3 = configuration.s3
+module.exports = function (serverLog) {
   return function (socket) {
-    var log = configuration.log.child({request: uuid.v4()})
+    var log = serverLog.child({request: uuid.v4()})
     log.info('connection')
     var plex = multiplex()
     var sharedStreams = new Map()
@@ -21,26 +20,26 @@ module.exports = function (configuration) {
     invitationStream.on('invitation', function (envelope) {
       var publicKey = envelope.publicKey
       var secretKey = envelope.message.secretKey
-      data.getPublicKey(s3, publicKey, function (error, record) {
+      s3.getPublicKey(publicKey, function (error, record) {
         if (error) return log.error(error)
         var email = record.email
-        data.getUser(s3, email, function (error, user) {
+        s3.getUser(email, function (error, user) {
           if (error) return log.error(error)
           stripe.getActiveSubscription(
-            configuration, user.customerID,
+            user.customerID,
             function (error, subscription) {
               if (error) return log.error(error)
               if (!subscription) return log.info({user}, 'no active subscription')
               var discoveryKey = hashHexString(secretKey)
               runParallel([
                 function (done) {
-                  data.putProjectSecretKey(s3, discoveryKey, secretKey, done)
+                  s3.putProjectSecretKey(discoveryKey, secretKey, done)
                 },
                 function (done) {
-                  data.putProjectUser(s3, discoveryKey, email, done)
+                  s3.putProjectUser(discoveryKey, email, done)
                 },
                 function (done) {
-                  data.putUserProject(s3, discoveryKey, publicKey, done)
+                  s3.putUserProject(discoveryKey, publicKey, done)
                 }
               ])
             }
@@ -54,7 +53,7 @@ module.exports = function (configuration) {
 
     // Replication
     plex.on('stream', function (sharedStream, discoveryKey) {
-      data.getProjectSecretKey(discoveryKey, function (error, secretKey) {
+      s3.getProjectSecretKey(discoveryKey, function (error, secretKey) {
         if (error) {
           log.error({discoveryKey}, error)
           return sharedStream.destroy()
@@ -83,17 +82,16 @@ function makeReplicationStream (options) {
   var secretKey = options.secretKey
   var discoveryKey = options.discoveryKey
   var log = options.log
-  var s3 = options.s3
 
   var returned = new protocol.Replication(secretKey)
   var requestedFromPeer = []
 
   returned.once('handshake', function (callback) {
-    data.listProjectPublicKeys(s3, discoveryKey, function (error, publicKeys) {
+    s3.listProjectPublicKeys(discoveryKey, function (error, publicKeys) {
       if (error) return callback(error)
       runParallel(publicKeys.map(function (publicKey) {
         return function (done) {
-          data.getLastIndex(discoveryKey, publicKey, function (error, index) {
+          s3.getLastIndex(discoveryKey, publicKey, function (error, index) {
             if (error) {
               log.error(error)
               return done()
@@ -121,8 +119,8 @@ function makeReplicationStream (options) {
   returned.on('request', function (request, callback) {
     var publicKey = request.publicKey
     var index = request.index
-    data.getEnvelope(
-      s3, discoveryKey, publicKey, index,
+    s3.getEnvelope(
+      discoveryKey, publicKey, index,
       function (error, envelope) {
         if (error) return log.error(error)
         returned.envelope(envelope, callback)
@@ -134,7 +132,7 @@ function makeReplicationStream (options) {
   returned.on('offer', function (offer, callback) {
     var publicKey = offer.publicKey
     var offeredIndex = offer.index
-    data.getLastIndex(s3, discoveryKey, publicKey, function (error, last) {
+    s3.getLastIndex(discoveryKey, publicKey, function (error, last) {
       if (error) return log.error(error)
       if (last === undefined) last = -1
       var index = last + 1
@@ -157,7 +155,7 @@ function makeReplicationStream (options) {
       log.error({envelope, discoveryKey}, 'project mismatch')
       return callback()
     }
-    data.putEnvelope(s3, envelope, callback)
+    s3.putEnvelope(envelope, callback)
   })
 
   returned.handshake(function () {
