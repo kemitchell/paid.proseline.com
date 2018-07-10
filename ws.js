@@ -307,6 +307,7 @@ function putJSONObject (s3, key, value, callback) {
   s3.putObject({
     Key: key,
     Body: Buffer.from(JSON.stringify(value)),
+    ContentType: 'application/json',
     ServerSideEncryption
   }, function (error) {
     if (error) return callback(error)
