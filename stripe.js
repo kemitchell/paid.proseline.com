@@ -1,4 +1,4 @@
-var data = require('./data')
+var data = require('./s3')
 var stripe = require('stripe')
 
 // TODO source for customer creation
