@@ -18,7 +18,6 @@ var uuid = require('uuid')
 
 var STYLESHEET = '/styles.css'
 var STYLES = fs.readFileSync('styles.css')
-var STRIPE_WEBHOOK = process.env.STRIPE_WEBHOOK
 
 var ajv = new AJV()
 
@@ -48,7 +47,7 @@ module.exports = function (serverLog) {
       return response.end()
     }
     if (pathname === STYLESHEET) return styles(request, response)
-    if (pathname === STRIPE_WEBHOOK) return webhook(request, response)
+    if (pathname === '/webhook') return webhook(request, response)
     return notFound(request, response)
   }
 }
