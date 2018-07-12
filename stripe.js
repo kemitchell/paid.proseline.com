@@ -4,7 +4,7 @@ var stripe = require('stripe')
 // TODO: Implement Stripe webhook for payment failure.
 // var SECRET = process.env.STRIPE_WEBHOOK_SECRET
 
-var PRIVATE = process.env.STRIPE_PRIVATE_KEY
+var PRIVATE = process.env.STRIPE_SECRET_KEY
 var PLAN = process.env.STRIPE_PLAN
 var WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET
 
