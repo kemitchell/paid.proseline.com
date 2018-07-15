@@ -28,7 +28,7 @@
     "standard": "^11.0.1"
   },
   "scripts": {
-    "deps": "depcheck --ignore standard,licensee",
+    "deps": "depcheck --ignores standard,licensee",
     "lint": "standard",
     "licenses": "licensee --errors-only"
   }
