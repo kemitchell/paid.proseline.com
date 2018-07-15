@@ -88,7 +88,7 @@ function postSubscribe (request, response) {
       if (error.limit) {
         // TODO: Double check stream calls for 413.
         response.statusCode = 413
-        response.end()
+        return response.end()
       } else return serverError(error)
     }
     if (!validOrder(order)) {
@@ -434,7 +434,7 @@ function styles (request, response) {
 function webhook (request, response) {
   if (!stripe.validSignature(request)) {
     response.statusCode = 400
-    response.end()
+    return response.end()
   }
   var log = request.log
   log.info('valid signature')
@@ -469,7 +469,7 @@ function postAdd (request, response) {
       if (error.limit) {
         // TODO: Double check stream calls for 413.
         response.statusCode = 413
-        response.end()
+        return response.end()
       } else return serverError(error)
     }
     if (!validAdd(request)) {
