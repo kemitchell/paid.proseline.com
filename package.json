@@ -18,7 +18,7 @@
     "sodium-native": "^2.1.6",
     "stripe": "^6.2.1",
     "uuid": "^3.3.2",
-    "ws": "^5.2.1",
+    "ws": "^5.2.2",
     "zero-fill": "^2.2.3"
   },
   "devDependencies": {
