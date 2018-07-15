@@ -103,16 +103,38 @@ exports.putProjectUser = function (discoveryKey, email, callback) {
   )
 }
 
-function userProjectKey (discoveryKey, email) {
+function userProjectKey (email, discoveryKey) {
   return `${userKey(email)}/projects/${discoveryKey}`
 }
 
 exports.putUserProject = function (discoveryKey, email, callback) {
   putJSONObject(
-    userProjectKey(discoveryKey, email),
+    userProjectKey(email, discoveryKey),
     {date: new Date().toISOString()},
     callback
   )
+}
+
+exports.listUserProjects = function (email, callback) {
+  var prefix = `${userKey(email)}/projects/`
+  recurse(false, callback)
+  function recurse (marker, done) {
+    var options = {Delimiter: DELIMITER, Prefix: prefix}
+    if (marker) options.Marker = marker
+    s3.listObjects(options, function (error, data) {
+      if (error) return callback(error)
+      var contents = data.Contents.map(function (element) {
+        return element.Key.split(DELIMITER)[3]
+      })
+      if (data.IsTruncated) {
+        return recurse(data.NextMarker, function (error, after) {
+          if (error) return done(error)
+          done(null, contents.concat(after))
+        })
+      }
+      done(null, contents)
+    })
+  }
 }
 
 function publicKeyKey (publicKey) {
