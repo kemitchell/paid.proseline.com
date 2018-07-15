@@ -1,0 +1,51 @@
+{
+  "type": "object",
+  "properties": {
+    "publicKey": {
+      "title": "Signing Public Key",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "maxLength": 64
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{128}$",
+      "maxLength": 128
+    },
+    "message": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Display Name for the Public Key",
+          "type": "string",
+          "pattern": "^[a-z0-9-]{3,32}$",
+          "minLength": 3,
+          "maxLength": 32
+        },
+        "email": {
+          "title": "E-Mail Address",
+          "type": "string",
+          "format": "email",
+          "maxLength": 254
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "maxLength": 20
+        }
+      },
+      "required": [
+        "name",
+        "email",
+        "date"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "publicKey",
+    "signature",
+    "message"
+  ],
+  "additionalProperties": false
+}

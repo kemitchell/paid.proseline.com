@@ -33,8 +33,12 @@ module.exports = function (serverLog) {
     if (pathname === '/subscribe') {
       if (method === 'POST') return postSubscribe(request, response)
       if (method === 'GET') return getSubscribe(request, response)
-      response.statusCode = 405
-      return response.end()
+      return respond405()
+    }
+    if (pathname === '/add') {
+      if (method === 'POST') return postAdd(request, response)
+      if (method === 'GET') return getAdd(request, response)
+      return respond405()
     }
     if (pathname === '/cancel') {
       if (method === 'POST') return postCancel(request, response)
@@ -43,13 +47,17 @@ module.exports = function (serverLog) {
         if (capability) return finishCancel(request, response)
         return startCancel(request, response)
       }
-      response.statusCode = 405
-      return response.end()
+      return respond405()
     }
     if (pathname === STYLESHEET) return styles(request, response)
     if (pathname === '/webhook') return webhook(request, response)
     return notFound(request, response)
   }
+}
+
+function respond405 (request, response) {
+  response.statusCode = 405
+  response.end()
 }
 
 function homepage (request, response) {
@@ -94,6 +102,7 @@ function postSubscribe (request, response) {
     log.info('unexpired')
     var email = order.message.email
     var token = order.message.token
+    var publicKey = order.publicKey
     s3.getUser(email, function (error, user) {
       if (error) return serverError(error, response)
 
@@ -104,7 +113,10 @@ function postSubscribe (request, response) {
             stripe.createCustomer(email, token, done)
           },
           function (customerID, done) {
-            s3.putUser({active: false, customerID}, done)
+            s3.putUser(email, {active: false, customerID}, done)
+          },
+          function (_, done) {
+            s3.putPublicKey(publicKey, {email, first: true}, done)
           }
         ], function (error) {
           if (error) return serverError(error)
@@ -129,10 +141,11 @@ function postSubscribe (request, response) {
         var capability = randomCapability()
         runSeries([
           function (done) {
-            s3.putCapability(email, customerID, capability, done)
+            var data = {type: 'subscribe'}
+            s3.putCapability(email, customerID, capability, data, done)
           },
           function (done) {
-            email.confirmation(request.log, email, capability, done)
+            email.subscribe(request.log, email, capability, done)
           }
         ], function (error) {
           if (error) return serverError(error)
@@ -197,6 +210,10 @@ function getSubscribe (request, response) {
   }
   s3.getCapability(capability, function (error, data) {
     if (error) return serverError(error)
+    if (data.type !== 'subscribe') {
+      response.statusCode = 400
+      return response.end()
+    }
     var customerID = data.customerID
     log.info(data, 'capability')
     runSeries([
@@ -433,4 +450,131 @@ function webhook (request, response) {
     }
     log.info({objectID}, 'logged')
   })
+}
+
+var validAdd = ajv.compile(require('./add.json'))
+
+function postAdd (request, response) {
+  var log = request.log
+  runWaterfall([
+    function (done) {
+      concatLimit(request, 512, done)
+    },
+    parse
+  ], function (error, request) {
+    if (error) {
+      if (error.limit) {
+        // TODO: Double check stream calls for 413.
+        response.statusCode = 413
+        response.end()
+      } else return serverError(error)
+    }
+    if (!validAdd(request)) {
+      return invalidRequest('invalid request')
+    }
+    log.info('invalid request')
+    if (!validSignature(request)) {
+      return invalidRequest('invalid signature')
+    }
+    log.info('valid signature')
+    if (!unexpired(request)) {
+      return invalidRequest('request expired')
+    }
+    log.info('unexpired')
+    var email = request.message.email
+    var name = request.message.name
+    var publicKey = request.publicKey
+    s3.getUser(email, function (error, user) {
+      if (error) return serverError(error, response)
+      if (!user) return response.end()
+      var customerID = user.customerID
+      stripe.getActiveSubscription(
+        customerID,
+        function (error, subscription) {
+          if (error) return serverError(error, response)
+          if (!subscription) return response.end()
+          var capability = randomCapability()
+          runSeries([
+            function (done) {
+              var data = {name, publicKey}
+              s3.putCapability(email, customerID, capability, data, done)
+            },
+            function (done) {
+              email.add(request.log, email, name, capability, done)
+            }
+          ], function (error) {
+            if (error) return serverError(error)
+            response.end()
+          })
+        }
+      )
+    })
+  })
+
+  function invalidRequest (message) {
+    response.end(JSON.stringify({error: message}))
+  }
+
+  function serverError (error, response) {
+    log.error(error)
+    response.end(JSON.stringify({error: 'server error'}))
+  }
+}
+
+function getAdd (request, response) {
+  var log = request.log
+  var capability = request.query.capability
+  if (!capability || !validCapability(capability)) {
+    return invalidRequest('invalid capability')
+  }
+  s3.getCapability(capability, function (error, data) {
+    if (error) return serverError(error)
+    if (data.type !== 'add') {
+      return invalidRequest('invalid capability')
+    }
+    var email = data.email
+    var name = data.name
+    var publicKey = data.publicKey
+    log.info(data, 'capability')
+    runSeries([
+      logSuccess(function (done) {
+        s3.deleteCapability(capability, done)
+      }, 'deleted capability'),
+      logSuccess(function (done) {
+        s3.putPublicKey(publicKey, {email, name}, done)
+      }, 'added key')
+    ], function (error) {
+      if (error) return serverError(error)
+      response.setHeader('Content-Type', 'text/html')
+      response.end(messagePage(
+        'Added Device',
+        [
+          `You have successfully added "${name}" to your account.`,
+          'Close and reopen proseline.com on that device ' +
+          'to begin sharing.'
+        ]
+      ))
+    })
+  })
+
+  function logSuccess (action, success) {
+    return function (done) {
+      action(function (error) {
+        if (error) return done(error)
+        log.info(success)
+        done()
+      })
+    }
+  }
+
+  function invalidRequest (message) {
+    response.end(JSON.stringify({error: message}))
+  }
+
+  function serverError (error) {
+    request.log.error(error)
+    response.statusCode = 500
+    response.setHeader('Content-Type', 'text/html')
+    response.end(serverErrorPage())
+  }
 }

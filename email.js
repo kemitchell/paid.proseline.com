@@ -7,7 +7,7 @@ var DOMAIN = process.env.MAILGUN_DOMAIN
 var FROM = process.env.MAILGUN_FROM
 var HOSTNAME = process.env.HOSTNAME
 
-exports.confirmation = function (
+exports.subscribe = function (
   requestLog, email, capability, callback
 ) {
   send(requestLog, {
@@ -16,6 +16,20 @@ exports.confirmation = function (
     paragraphs: [
       'Click this link to confirm your Proseline subscription:',
       `https://${HOSTNAME}/subscribe?capability=${capability}`
+    ]
+  }, callback)
+}
+
+exports.add = function (
+  requestLog, email, name, capability, callback
+) {
+  send(requestLog, {
+    to: email,
+    subject: 'Add a New Device to Your Proseline Subscription',
+    paragraphs: [
+      'Click this link to confirm adding the new device ' +
+      `"${name}" to you Proseline subscription:`,
+      `https://${HOSTNAME}/add?capability=${capability}`
     ]
   }, callback)
 }

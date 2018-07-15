@@ -123,6 +123,11 @@ exports.getPublicKey = function (publicKey, callback) {
   getJSONObject(publicKeyKey(publicKey), callback)
 }
 
+exports.putPublicKey = function (publicKey, data, callback) {
+  data.date = new Date().toISOString()
+  putJSONObject(publicKeyKey(publicKey), data, callback)
+}
+
 function userKey (email) {
   return `users/${encodeURIComponent(email)}`
 }
@@ -131,14 +136,20 @@ exports.getUser = function (email, callback) {
   getJSONObject(userKey(email), callback)
 }
 
+exports.putUser = function (email, data, callback) {
+  data.emil = email
+  putJSONObject(userKey(email), data, callback)
+}
+
 function capabilityKey (capability) {
   return `capabilities/${capability}`
 }
 
-exports.putCapability = function (email, customerID, capability, callback) {
-  var date = new Date().toISOString()
-  var object = {date, email, customerID}
-  putJSONObject(capabilityKey(capability), object, callback)
+exports.putCapability = function (email, customerID, capability, data, callback) {
+  data.date = new Date().toISOString()
+  data.email = email
+  data.customerID = customerID
+  putJSONObject(capabilityKey(capability), data, callback)
 }
 
 exports.getCapability = function (capability, callback) {
