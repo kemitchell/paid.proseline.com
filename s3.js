@@ -13,10 +13,13 @@ var s3 = new aws.S3({
 })
 
 function projectKey (discoveryKey) {
+  assert.equal(typeof discoveryKey, 'string')
   return `projects/${discoveryKey}`
 }
 
 exports.listProjectPublicKeys = function (discoveryKey, callback) {
+  assert.equal(typeof discoveryKey, 'string')
+  assert.equal(typeof callback, 'function')
   var prefix = `${projectKey(discoveryKey)}/publicKeys/`
   listAllKeys(prefix, function (error, keys) {
     if (error) return callback(error)
@@ -27,6 +30,9 @@ exports.listProjectPublicKeys = function (discoveryKey, callback) {
 }
 
 function envelopeKey (discoveryKey, publicKey, index) {
+  assert.equal(typeof discoveryKey, 'string')
+  assert.equal(typeof publicKey, 'string')
+  assert.equal(typeof index, 'number')
   return (
     `${projectKey(discoveryKey)}` +
     `/envelopes/${publicKey}/${indices.stringify(index)}`
@@ -34,6 +40,9 @@ function envelopeKey (discoveryKey, publicKey, index) {
 }
 
 exports.getLastIndex = function (discoveryKey, publicKey, callback) {
+  assert.equal(typeof discoveryKey, 'string')
+  assert.equal(typeof publicKey, 'string')
+  assert.equal(typeof callback, 'function')
   s3.listObjects({
     Delimiter: DELIMITER,
     Prefix: `${projectKey(discoveryKey)}/envelopes/${publicKey}/`,
@@ -48,12 +57,23 @@ exports.getLastIndex = function (discoveryKey, publicKey, callback) {
 }
 
 exports.getEnvelope = function (discoveryKey, publicKey, index, callback) {
+  assert.equal(typeof discoveryKey, 'string')
+  assert.equal(typeof publicKey, 'string')
+  assert.equal(typeof index, 'number')
+  assert.equal(typeof callback, 'function')
   getJSONObject(
     envelopeKey(discoveryKey, publicKey, index), callback
   )
 }
 
 exports.putEnvelope = function (envelope, callback) {
+  assert.equal(typeof envelope, 'object')
+  assert(envelope.hasOwnProperty('message'))
+  assert(envelope.hasOwnProperty('publicKey'))
+  assert(envelope.hasOwnProperty('signature'))
+  assert(envelope.message.hasOwnProperty('project'))
+  assert(envelope.message.hasOwnProperty('index'))
+  assert.equal(typeof callback, 'function')
   putJSONObject(
     envelopeKey(
       envelope.message.project,
@@ -66,24 +86,35 @@ exports.putEnvelope = function (envelope, callback) {
 }
 
 function projectSecretKeyKey (discoveryKey) {
+  assert.equal(typeof discoveryKey, 'string')
   return `${projectKey(discoveryKey)}/secretKey`
 }
 
 exports.getProjectSecretKey = function (discoveryKey, callback) {
+  assert.equal(typeof discoveryKey, 'string')
+  assert.equal(typeof callback, 'function')
   getJSONObject(projectSecretKeyKey(discoveryKey), callback)
 }
 
 exports.putProjectSecretKey = function (discoveryKey, secretKey, callback) {
+  assert.equal(typeof discoveryKey, 'string')
+  assert.equal(typeof secretKey, 'string')
+  assert.equal(typeof callback, 'function')
   putJSONObject(
     projectSecretKeyKey(discoveryKey), secretKey, callback
   )
 }
 
 function projectUserKey (discoveryKey, email) {
+  assert.equal(typeof discoveryKey, 'string')
+  assert.equal(typeof email, 'string')
   return `${projectKey(discoveryKey)}/users/${encodeURIComponent(email)}`
 }
 
 exports.putProjectUser = function (discoveryKey, email, callback) {
+  assert.equal(typeof discoveryKey, 'string')
+  assert.equal(typeof email, 'string')
+  assert.equal(typeof callback, 'function')
   putJSONObject(
     projectUserKey(discoveryKey, email),
     {date: new Date().toISOString()},
@@ -92,10 +123,15 @@ exports.putProjectUser = function (discoveryKey, email, callback) {
 }
 
 function userProjectKey (email, discoveryKey) {
+  assert.equal(typeof email, 'string')
+  assert.equal(typeof discoveryKey, 'string')
   return `${userKey(email)}/projects/${discoveryKey}`
 }
 
 exports.putUserProject = function (discoveryKey, email, callback) {
+  assert.equal(typeof discoveryKey, 'string')
+  assert.equal(typeof email, 'string')
+  assert.equal(typeof callback, 'function')
   putJSONObject(
     userProjectKey(email, discoveryKey),
     {date: new Date().toISOString()},
@@ -104,6 +140,8 @@ exports.putUserProject = function (discoveryKey, email, callback) {
 }
 
 exports.listUserProjects = function (email, callback) {
+  assert.equal(typeof email, 'string')
+  assert.equal(typeof callback, 'function')
   var prefix = `${userKey(email)}/projects/`
   listAllKeys(prefix, function (error, keys) {
     if (error) return callback(error)
@@ -114,36 +152,54 @@ exports.listUserProjects = function (email, callback) {
 }
 
 function publicKeyKey (publicKey) {
+  assert.equal(typeof publicKey, 'string')
   return `/publicKeys/${publicKey}`
 }
 
 exports.getPublicKey = function (publicKey, callback) {
+  assert.equal(typeof publicKey, 'string')
+  assert.equal(typeof callback, 'function')
   getJSONObject(publicKeyKey(publicKey), callback)
 }
 
 exports.putPublicKey = function (publicKey, data, callback) {
+  assert.equal(typeof publicKey, 'string')
+  assert.equal(typeof data, 'object')
+  assert.equal(typeof callback, 'function')
   data.date = new Date().toISOString()
   putJSONObject(publicKeyKey(publicKey), data, callback)
 }
 
 function userKey (email) {
+  assert.equal(typeof email, 'string')
   return `users/${encodeURIComponent(email)}`
 }
 
 exports.getUser = function (email, callback) {
+  assert.equal(typeof email, 'string')
+  assert.equal(typeof callback, 'function')
   getJSONObject(userKey(email), callback)
 }
 
 exports.putUser = function (email, data, callback) {
+  assert.equal(typeof email, 'string')
+  assert.equal(typeof data, 'object')
+  assert.equal(typeof callback, 'function')
   data.emil = email
   putJSONObject(userKey(email), data, callback)
 }
 
 function capabilityKey (capability) {
+  assert.equal(typeof capability, 'string')
   return `capabilities/${capability}`
 }
 
 exports.putCapability = function (email, customerID, capability, data, callback) {
+  assert.equal(typeof email, 'string')
+  assert.equal(typeof customerID, 'string')
+  assert.equal(typeof capabiliti, 'string')
+  assert.equal(typeof data, 'object')
+  assert.equal(typeof callback, 'function')
   data.date = new Date().toISOString()
   data.email = email
   data.customerID = customerID
@@ -151,14 +207,20 @@ exports.putCapability = function (email, customerID, capability, data, callback)
 }
 
 exports.getCapability = function (capability, callback) {
+  assert.equal(typeof capability, 'string')
+  assert.equal(typeof callback, 'function')
   getJSONObject(capabilityKey(capability), callback)
 }
 
 exports.deleteCapability = function (capability, callback) {
+  assert.equal(typeof capability, 'string')
+  assert.equal(typeof callback, 'function')
   s3.deleteObject({Key: capabilityKey(capability)}, callback)
 }
 
 exports.putWebhook = function (data, callback) {
+  assert.equal(typeof data, 'object')
+  assert.equal(typeof callback, 'function')
   var id = new Date().toISOString() + '-' + uuid.v4()
   putJSONObject(`webhooks/${id}`, data, function (error) {
     if (error) return callback(error)
@@ -167,7 +229,6 @@ exports.putWebhook = function (data, callback) {
 }
 
 function getJSONObject (key, callback) {
-  assert(s3)
   assert.equal(typeof key, 'string')
   assert.equal(typeof callback, 'function')
   runWaterfall([
@@ -184,7 +245,6 @@ function getJSONObject (key, callback) {
 var ServerSideEncryption = 'AES256'
 
 function putJSONObject (key, value, callback) {
-  assert(s3)
   assert.equal(typeof key, 'string')
   assert(value)
   assert.equal(typeof callback, 'function')
@@ -200,6 +260,8 @@ function putJSONObject (key, value, callback) {
 }
 
 function listAllKeys (prefix, callback) {
+  assert.equal(typeof prefix, 'string')
+  assert.equal(typeof callback, 'function')
   recurse(false, callback)
   function recurse (marker, done) {
     var options = {Delimiter: DELIMITER, Prefix: prefix}
