@@ -26,27 +26,6 @@ exports.listProjectPublicKeys = function (discoveryKey, callback) {
   })
 }
 
-function listAllKeys (prefix, callback) {
-  recurse(false, callback)
-  function recurse (marker, done) {
-    var options = {Delimiter: DELIMITER, Prefix: prefix}
-    if (marker) options.Marker = marker
-    s3.listObjects(options, function (error, data) {
-      if (error) return callback(error)
-      var contents = data.Contents.map(function (element) {
-        return element.Key
-      })
-      if (data.IsTruncated) {
-        return recurse(data.NextMarker, function (error, after) {
-          if (error) return done(error)
-          done(null, contents.concat(after))
-        })
-      }
-      done(null, contents)
-    })
-  }
-}
-
 function envelopeKey (discoveryKey, publicKey, index) {
   return (
     `${projectKey(discoveryKey)}` +
@@ -218,4 +197,25 @@ function putJSONObject (key, value, callback) {
     if (error) return callback(error)
     callback()
   })
+}
+
+function listAllKeys (prefix, callback) {
+  recurse(false, callback)
+  function recurse (marker, done) {
+    var options = {Delimiter: DELIMITER, Prefix: prefix}
+    if (marker) options.Marker = marker
+    s3.listObjects(options, function (error, data) {
+      if (error) return callback(error)
+      var contents = data.Contents.map(function (element) {
+        return element.Key
+      })
+      if (data.IsTruncated) {
+        return recurse(data.NextMarker, function (error, after) {
+          if (error) return done(error)
+          done(null, contents.concat(after))
+        })
+      }
+      done(null, contents)
+    })
+  }
 }
