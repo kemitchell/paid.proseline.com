@@ -74,7 +74,7 @@ function homepage (request, response) {
   ))
 }
 
-var validOrder = ajv.compile(require('./order.json'))
+var validOrder = ajv.compile(require('./order.schema.json'))
 
 function postSubscribe (request, response) {
   var log = request.log
@@ -455,7 +455,7 @@ function webhook (request, response) {
   })
 }
 
-var validAdd = ajv.compile(require('./add.json'))
+var validAdd = ajv.compile(require('./add.schema.json'))
 
 function postAdd (request, response) {
   var log = request.log
