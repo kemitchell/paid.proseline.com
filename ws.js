@@ -4,6 +4,7 @@ var protocol = require('proseline-protocol')
 var runParallel = require('run-parallel')
 var s3 = require('./s3')
 var sodium = require('sodium-native')
+var stringify = require('fast-json-stable-stringify')
 var stripe = require('./stripe')
 var uuid = require('uuid')
 
@@ -21,70 +22,50 @@ module.exports = function (serverLog) {
     invitationStream.on('invitation', function (envelope) {
       var publicKey = envelope.publicKey
       var secretKey = envelope.message.secretKey
-      s3.getPublicKey(publicKey, function (error, record) {
+      ensureActiveSubscription(publicKey, function (error, email, subscription) {
         if (error) return log.error(error)
-        var email = record.email
-        s3.getUser(email, function (error, user) {
-          if (error) return log.error(error)
-          stripe.getActiveSubscription(
-            user.customerID,
-            function (error, subscription) {
-              if (error) return log.error(error)
-              if (!subscription) return log.info({user}, 'no active subscription')
-              var discoveryKey = hashHexString(secretKey)
-              runParallel([
-                function (done) {
-                  s3.putProjectSecretKey(discoveryKey, secretKey, done)
-                },
-                function (done) {
-                  s3.putProjectUser(discoveryKey, email, done)
-                },
-                function (done) {
-                  s3.putUserProject(discoveryKey, publicKey, done)
-                }
-              ])
-            }
-          )
-        })
+        if (!subscription) return log.info('no active subscription')
+        var discoveryKey = hashHexString(secretKey)
+        runParallel([
+          function (done) {
+            s3.putProjectSecretKey(discoveryKey, secretKey, done)
+          },
+          function (done) {
+            s3.putProjectUser(discoveryKey, email, done)
+          },
+          function (done) {
+            s3.putUserProject(discoveryKey, publicKey, done)
+          }
+        ])
       })
     })
 
     invitationStream.on('request', function (envelope) {
       var publicKey = envelope.publicKey
-      s3.getPublicKey(publicKey, function (error, record) {
+      ensureActiveSubscription(publicKey, function (error, email, subscription) {
         if (error) return log.error(error)
-        var email = record.email
-        s3.getUser(email, function (error, user) {
+        if (!subscription) return log.info('no active subscription')
+        s3.listUserProjects(email, function (error, discoveryKeys) {
           if (error) return log.error(error)
-          stripe.getActiveSubscription(
-            user.customerID,
-            function (error, subscription) {
+          discoveryKeys.forEach(function (discoveryKey) {
+            s3.getProjectSecretKey(discoveryKeys, function (error, secretKey) {
               if (error) return log.error(error)
-              if (!subscription) return log.info({user}, 'no active subscription')
-              s3.listUserProjects(email, function (error, discoveryKeys) {
+              var invitation = {
+                message: {secretKey},
+                publicKey: process.env.PUBLIC_KEY
+              }
+              var signature = Buffer.alloc(sodium.crypto_sign_BYTES)
+              sodium.crypto_sign_detached(
+                signature,
+                Buffer.from(stringify(invitation.message), 'utf8'),
+                Buffer.from(process.env.SECRET_KEY, 'hex')
+              )
+              invitation.signature = signature.toString('hex')
+              invitationStream.invitation(invitation, function (error) {
                 if (error) return log.error(error)
-                discoveryKeys.forEach(function (discoveryKey) {
-                  s3.getProjectSecretKey(discoveryKeys, function (error, secretKey) {
-                    if (error) return log.error(error)
-                    var invitation = {
-                      message: {secretKey},
-                      publicKey: process.env.PUBLIC_KEY
-                    }
-                    var signature = Buffer.alloc(sodium.crypto_sign_BYTES)
-                    sodium.crypto_sign_detached(
-                      signature,
-                      Buffer.from(stringify(invitation.message), 'utf8'),
-                      Buffer.from(process.env.SECRET_KEY, 'hex')
-                    )
-                    invitation.signature = signature.toString('hex')
-                    invitationStream.invitation(invitation, function (error) {
-                      if (error) return log.error(error)
-                    })
-                  })
-                })
               })
-            }
-          )
+            })
+          })
         })
       })
     })
@@ -114,6 +95,23 @@ module.exports = function (serverLog) {
       })
     })
   }
+}
+
+function ensureActiveSubscription (publicKey, callback) {
+  s3.getPublicKey(publicKey, function (error, record) {
+    if (error) return callback(error)
+    var email = record.email
+    s3.getUser(email, function (error, user) {
+      if (error) return callback(error)
+      stripe.getActiveSubscription(
+        user.customerID,
+        function (error, subscription) {
+          if (error) return callback(error)
+          callback(null, email, subscription)
+        }
+      )
+    })
+  })
 }
 
 function makeReplicationStream (options) {
