@@ -11,6 +11,7 @@
     "pino": "^4.17.3",
     "pino-http": "^3.2.2",
     "proseline-protocol": "^2.1.0",
+    "pump": "^3.0.0",
     "run-parallel": "^1.1.9",
     "run-series": "^1.1.8",
     "run-waterfall": "^1.1.6",
@@ -22,10 +23,12 @@
     "zero-fill": "^2.2.3"
   },
   "devDependencies": {
+    "depcheck": "^0.6.9",
     "licensee": "^4.5.0",
     "standard": "^11.0.1"
   },
   "scripts": {
+    "deps": "depcheck",
     "lint": "standard",
     "licenses": "licensee --errors-only"
   }

@@ -4,4 +4,5 @@ node_js: node
 sudo: false
 script:
 - npm run lint
+- npm run deps
 - npm run licenses
