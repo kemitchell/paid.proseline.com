@@ -49,6 +49,9 @@ module.exports = function (serverLog) {
       }
       return respond405()
     }
+    if (pathname === '/publickey') {
+      return response.end(process.env.PUBLIC_KEY)
+    }
     if (pathname === STYLESHEET) return styles(request, response)
     if (pathname === '/webhook') return webhook(request, response)
     return notFound(request, response)
