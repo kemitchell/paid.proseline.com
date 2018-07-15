@@ -18,6 +18,15 @@ function projectKey (discoveryKey) {
 
 exports.listProjectPublicKeys = function (discoveryKey, callback) {
   var prefix = `${projectKey(discoveryKey)}/publicKeys/`
+  listAllKeys(prefix, function (error, keys) {
+    if (error) return callback(error)
+    callback(null, keys.map(function (key) {
+      return key.split(DELIMITER)[3]
+    }))
+  })
+}
+
+function listAllKeys (prefix, callback) {
   recurse(false, callback)
   function recurse (marker, done) {
     var options = {Delimiter: DELIMITER, Prefix: prefix}
@@ -25,7 +34,7 @@ exports.listProjectPublicKeys = function (discoveryKey, callback) {
     s3.listObjects(options, function (error, data) {
       if (error) return callback(error)
       var contents = data.Contents.map(function (element) {
-        return element.Key.split(DELIMITER)[3]
+        return element.Key
       })
       if (data.IsTruncated) {
         return recurse(data.NextMarker, function (error, after) {
@@ -117,24 +126,12 @@ exports.putUserProject = function (discoveryKey, email, callback) {
 
 exports.listUserProjects = function (email, callback) {
   var prefix = `${userKey(email)}/projects/`
-  recurse(false, callback)
-  function recurse (marker, done) {
-    var options = {Delimiter: DELIMITER, Prefix: prefix}
-    if (marker) options.Marker = marker
-    s3.listObjects(options, function (error, data) {
-      if (error) return callback(error)
-      var contents = data.Contents.map(function (element) {
-        return element.Key.split(DELIMITER)[3]
-      })
-      if (data.IsTruncated) {
-        return recurse(data.NextMarker, function (error, after) {
-          if (error) return done(error)
-          done(null, contents.concat(after))
-        })
-      }
-      done(null, contents)
-    })
-  }
+  listAllKeys(prefix, function (error, keys) {
+    if (error) return callback(error)
+    callback(null, keys.map(function (key) {
+      return key.split(DELIMITER)[3]
+    }))
+  })
 }
 
 function publicKeyKey (publicKey) {
