@@ -5,7 +5,7 @@ var stripe = require('stripe')
 // var SECRET = process.env.STRIPE_WEBHOOK_SECRET
 
 var PRIVATE = process.env.STRIPE_SECRET_KEY
-var PLAN = process.env.STRIPE_PLAN
+var PLAN = process.env.STRIPE_PRODUCT
 var WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET
 
 var client = stripe(PRIVATE)
