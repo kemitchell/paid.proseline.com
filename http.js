@@ -444,7 +444,7 @@ function webhook (request, response) {
     },
     parse,
     function (body, done) {
-      stripe.putWebhook(body, done)
+      s3.putWebhook(body, done)
     }
   ], function (error, objectID) {
     if (error) {
