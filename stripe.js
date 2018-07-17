@@ -19,10 +19,10 @@ module.exports = {
   validSignature
 }
 
-function createCustomer (email, token, callback) {
+function createCustomer (email, source, callback) {
   client
     .customers
-    .create({email, token}, callback)
+    .create({email, source}, callback)
 }
 
 function getCustomer (customerID, callback) {
@@ -31,7 +31,7 @@ function getCustomer (customerID, callback) {
     .retrieve(customerID, callback)
 }
 
-function subscribe (customerID, token, callback) {
+function subscribe (customerID, callback) {
   client
     .subscriptions
     .create({
