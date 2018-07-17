@@ -107,7 +107,7 @@ function postSubscribe (request, response) {
     var token = order.message.token
     var publicKey = order.publicKey
     s3.getUser(email, function (error, user) {
-      if (error) return serverError(error, response)
+      if (error) return serverError(error)
 
       // There is no Stripe customer for the e-mail address.
       if (!user) {
@@ -137,7 +137,7 @@ function postSubscribe (request, response) {
       stripe.getActiveSubscription(
         customerID,
         function (error, subscription) {
-          if (error) return serverError(error, response)
+          if (error) return serverError(error)
           if (subscription) {
             return invalidRequest(response, 'already subscribed')
           }
@@ -169,7 +169,7 @@ function postSubscribe (request, response) {
     response.end(JSON.stringify({error: message}))
   }
 
-  function serverError (error, response) {
+  function serverError (error) {
     log.error(error)
     response.end(JSON.stringify({error: 'server error'}))
   }
