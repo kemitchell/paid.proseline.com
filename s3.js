@@ -7,6 +7,8 @@ var uuid = require('uuid')
 
 var DELIMITER = '/'
 
+var BUCKET = process.env.S3_BUCKET
+
 var s3 = new aws.S3({
   accessKeyId: process.env.S3_ACCESS_KEY,
   secretAccessKey: process.env.S3_SECRET_KEY
@@ -44,6 +46,7 @@ exports.getLastIndex = function (discoveryKey, publicKey, callback) {
   assert.equal(typeof publicKey, 'string')
   assert.equal(typeof callback, 'function')
   s3.listObjects({
+    Bucket: BUCKET,
     Delimiter: DELIMITER,
     Prefix: `${projectKey(discoveryKey)}/envelopes/${publicKey}/`,
     MaxKeys: 1
@@ -215,7 +218,10 @@ exports.getCapability = function (capability, callback) {
 exports.deleteCapability = function (capability, callback) {
   assert.equal(typeof capability, 'string')
   assert.equal(typeof callback, 'function')
-  s3.deleteObject({Key: capabilityKey(capability)}, callback)
+  s3.deleteObject({
+    Bucket: BUCKET,
+    Key: capabilityKey(capability)
+  }, callback)
 }
 
 exports.putWebhook = function (data, callback) {
@@ -233,7 +239,10 @@ function getJSONObject (key, callback) {
   assert.equal(typeof callback, 'function')
   runWaterfall([
     function (done) {
-      s3.getObject({Key: key}, function (error, data) {
+      s3.getObject({
+        Bucket: BUCKET,
+        Key: key
+      }, function (error, data) {
         if (error) return done(error)
         done(null, data.Body)
       })
@@ -249,6 +258,7 @@ function putJSONObject (key, value, callback) {
   assert(value)
   assert.equal(typeof callback, 'function')
   s3.putObject({
+    Bucket: BUCKET,
     Key: key,
     Body: Buffer.from(JSON.stringify(value)),
     ContentType: 'application/json',
@@ -264,7 +274,11 @@ function listAllKeys (prefix, callback) {
   assert.equal(typeof callback, 'function')
   recurse(false, callback)
   function recurse (marker, done) {
-    var options = {Delimiter: DELIMITER, Prefix: prefix}
+    var options = {
+      Bucket: BUCKET,
+      Delimiter: DELIMITER,
+      Prefix: prefix
+    }
     if (marker) options.Marker = marker
     s3.listObjects(options, function (error, data) {
       if (error) return callback(error)
