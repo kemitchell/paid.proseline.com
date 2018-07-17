@@ -248,7 +248,13 @@ function getJSONObject (key, callback) {
       })
     },
     parse
-  ], callback)
+  ], function (error, result) {
+    if (error) {
+      if (error.code === 'NoSuchKey') return callback(null, null)
+      return callback(error)
+    }
+    callback(null, result)
+  })
 }
 
 var ServerSideEncryption = 'AES256'
