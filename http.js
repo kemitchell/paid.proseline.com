@@ -111,23 +111,28 @@ function postSubscribe (request, response) {
 
       // There is no Stripe customer for the e-mail address.
       if (!user) {
+        log.info('no existing Stripe customer')
         return runWaterfall([
           function (done) {
             stripe.createCustomer(email, token, done)
           },
           function (customerID, done) {
+            log.info({customerID}, 'created Stripe customer')
             s3.putUser(email, {active: false, customerID}, done)
           },
           function (_, done) {
+            log.info('put user to s3')
             s3.putPublicKey(publicKey, {email, first: true}, done)
           }
         ], function (error) {
           if (error) return serverError(error)
+          log.info('put public key to s3')
           sendEMail(customerID)
         })
       }
 
       // There is already a Stripe customer for the e-mail address.
+      log.info(user, 'existing Stripe customer')
       var customerID = user.customerID
       stripe.getActiveSubscription(
         customerID,
@@ -136,6 +141,7 @@ function postSubscribe (request, response) {
           if (subscription) {
             return invalidRequest(response, 'already subscribed')
           }
+          log.info('got subscription')
           sendEMail(customerID)
         }
       )
@@ -148,6 +154,7 @@ function postSubscribe (request, response) {
             s3.putCapability(email, customerID, capability, data, done)
           },
           function (done) {
+            log.info('put capability to s3')
             email.subscribe(request.log, email, capability, done)
           }
         ], function (error) {
