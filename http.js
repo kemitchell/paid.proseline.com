@@ -94,7 +94,7 @@ function postSubscribe (request, response) {
     if (!validOrder(order)) {
       return invalidRequest(response, 'invalid order')
     }
-    log.info('invalid order')
+    log.info('valid order')
     if (!validSignature(order)) {
       return invalidRequest(response, 'invalid signature')
     }
