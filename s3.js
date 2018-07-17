@@ -188,7 +188,7 @@ exports.putUser = function (email, data, callback) {
   assert.equal(typeof email, 'string')
   assert.equal(typeof data, 'object')
   assert.equal(typeof callback, 'function')
-  data.emil = email
+  data.email = email
   putJSONObject(userKey(email), data, callback)
 }
 
