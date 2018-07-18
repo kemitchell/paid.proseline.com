@@ -77,6 +77,10 @@ module.exports = function (serverLog) {
       })
     })
 
+    invitationStream.handshake(function (error) {
+      if (error) return log.error(error)
+    })
+
     invitationStream
       .pipe(discoveryKeysStream)
       .pipe(invitationStream)
