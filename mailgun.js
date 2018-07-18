@@ -65,7 +65,7 @@ function send (requestLog, options, callback) {
   }, function (response) {
     var status = response.statusCode
     if (status === 200) {
-      log.info({event: 'sent'})
+      log.info(options, 'sent')
       return callback()
     }
     var chunks = []
