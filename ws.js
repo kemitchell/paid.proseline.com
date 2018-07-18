@@ -150,12 +150,13 @@ function makeReplicationStream (options) {
   assert(options.s3)
   var secretKey = options.secretKey
   var discoveryKey = options.discoveryKey
-  var log = options.log
+  var log = options.log.child({discoveryKey})
 
   var returned = new protocol.Replication(secretKey)
   var requestedFromPeer = []
 
   returned.once('handshake', function (callback) {
+    log.info('received handshake')
     s3.listProjectPublicKeys(discoveryKey, function (error, publicKeys) {
       if (error) return callback(error)
       runParallel(publicKeys.map(function (publicKey) {
@@ -177,6 +178,7 @@ function makeReplicationStream (options) {
               requestedFromPeer.splice(requestIndex, 1)
               return done()
             }
+            log.info(offer, 'offering')
             protocol.offer(offer, done)
           })
         }
@@ -186,12 +188,14 @@ function makeReplicationStream (options) {
 
   // When our peer requests an envelope...
   returned.on('request', function (request, callback) {
+    log.info('received request')
     var publicKey = request.publicKey
     var index = request.index
     s3.getEnvelope(
       discoveryKey, publicKey, index,
       function (error, envelope) {
         if (error) return log.error(error)
+        log.info({discoveryKey, index}, 'sending')
         returned.envelope(envelope, callback)
       }
     )
@@ -199,6 +203,7 @@ function makeReplicationStream (options) {
 
   // When our peer offers an envelope...
   returned.on('offer', function (offer, callback) {
+    log.info(offer, 'received offer')
     var publicKey = offer.publicKey
     var offeredIndex = offer.index
     s3.getLastIndex(discoveryKey, publicKey, function (error, last) {
@@ -208,6 +213,7 @@ function makeReplicationStream (options) {
       requestNextEnvelope()
       function requestNextEnvelope () {
         if (index > offeredIndex) return callback()
+        log.info({publicKey, index}, 'requesting')
         protocol.request({publicKey, index}, function (error) {
           if (error) return callback(error)
           requestedFromPeer.push({publicKey, index})
@@ -220,6 +226,7 @@ function makeReplicationStream (options) {
 
   // When our peer sends an envelope...
   returned.on('envelope', function (envelope, callback) {
+    log.info('received envelope')
     if (envelope.messsage.project !== discoveryKey) {
       log.error({envelope, discoveryKey}, 'project mismatch')
       return callback()
