@@ -10,7 +10,7 @@
     "multiplex": "^6.7.0",
     "pino": "^4.17.3",
     "pino-http": "^3.2.2",
-    "proseline-protocol": "^4.1.2",
+    "proseline-protocol": "^5.0.0",
     "pump": "^3.0.0",
     "run-parallel": "^1.1.9",
     "run-series": "^1.1.8",
