@@ -40,6 +40,18 @@ module.exports = function (serverLog) {
           }
         ], function (error) {
           if (error) return log.error(error)
+          if (!sharedStreams.has(discoveryKey)) {
+            log.info({discoveryKey}, 'replicating')
+            var replicationStream = makeReplicationStream({
+              secretKey, discoveryKey, log, s3
+            })
+            var sharedStream = plex.createSharedStream(discoveryKey)
+            var record = {sharedStream, replicationStream}
+            sharedStreams.set(discoveryKey, record)
+            replicationStream
+              .pipe(sharedStream)
+              .pipe(replicationStream)
+          }
           log.info('done')
         })
       })
