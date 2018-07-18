@@ -25,7 +25,10 @@ function createCustomer (email, source, callback) {
   assert.equal(typeof callback, 'function')
   client
     .customers
-    .create({email, source}, callback)
+    .create({email, source}, function (error, customer) {
+      if (error) return callback(error)
+      callback(null, customer.id)
+    })
 }
 
 function getCustomer (customerID, callback) {
