@@ -480,7 +480,7 @@ function postAdd (request, response) {
       concatLimit(request, 512, done)
     },
     parse
-  ], function (error, request) {
+  ], function (error, add) {
     if (error) {
       if (error.limit) {
         // TODO: Double check stream calls for 413.
@@ -489,11 +489,11 @@ function postAdd (request, response) {
       }
       return serverError(error)
     }
-    if (!validAdd(request)) {
+    if (!validAdd(add)) {
       return invalidRequest('invalid request')
     }
     request.log.info('valid request')
-    if (!validSignature(request)) {
+    if (!validSignature(add)) {
       return invalidRequest('invalid signature')
     }
     request.log.info('valid signature')
@@ -501,9 +501,9 @@ function postAdd (request, response) {
       return invalidRequest('request expired')
     }
     request.log.info('unexpired')
-    var email = request.message.email
-    var name = request.message.name
-    var publicKey = request.publicKey
+    var email = add.message.email
+    var name = add.message.name
+    var publicKey = add.publicKey
     s3.getUser(email, function (error, user) {
       if (error) return serverError(error)
       if (!user) return response.end()
