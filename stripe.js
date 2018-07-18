@@ -78,12 +78,12 @@ function getActiveSubscription (customerID, callback) {
   })
 }
 
-function validSignature (request) {
+function validSignature (request, body) {
   try {
     client
       .webhooks
       .constructEvent(
-        request.body,
+        body,
         request.headers['stripe-signature'],
         WEBHOOK_SECRET
       )

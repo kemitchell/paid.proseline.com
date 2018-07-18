@@ -449,26 +449,30 @@ function styles (request, response) {
 }
 
 function webhook (request, response) {
-  if (!stripe.validSignature(request)) {
-    response.statusCode = 400
-    return response.end()
-  }
   var log = request.log
-  log.info('valid signature')
   runWaterfall([
     function (done) {
       simpleConcat(request, done)
     },
-    parse,
-    function (body, done) {
-      s3.putWebhook(body, done)
-    }
-  ], function (error, objectID) {
+    parse
+  ], function (error, body) {
     if (error) {
       response.statusCode = 400
       return response.end()
     }
-    log.info({objectID}, 'logged')
+    if (!stripe.validSignature(request, body)) {
+      response.statusCode = 400
+      return response.end()
+    }
+    log.info('valid signature')
+    s3.putWebhook(body, function (error, objectID) {
+      if (error) {
+        response.statusCode = 500
+        response.end()
+      }
+      log.info({objectID}, 'logged')
+      response.end()
+    })
   })
 }
 
