@@ -490,7 +490,7 @@ function postAdd (request, response) {
       return serverError(error)
     }
     if (!validAdd(add)) {
-      return invalidRequest('invalid request')
+      return invalidRequest('invalid add')
     }
     request.log.info('valid request')
     if (!validSignature(add)) {
