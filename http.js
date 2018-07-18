@@ -113,12 +113,14 @@ function postSubscribe (request, response) {
       // There is no Stripe customer for the e-mail address.
       if (!user) {
         log.info('no existing Stripe customer')
+        var newCustomerID
         return runWaterfall([
           function (done) {
             stripe.createCustomer(email, token, done)
           },
           function (customerID, done) {
             log.info({customerID}, 'created Stripe customer')
+            newCustomerID = customerID
             s3.putUser(email, {active: false, customerID}, done)
           },
           function (done) {
@@ -128,7 +130,7 @@ function postSubscribe (request, response) {
         ], function (error) {
           if (error) return serverError(error)
           log.info('put public key to s3')
-          sendEMail(customerID)
+          sendEMail(newCustomerID)
         })
       }
 
