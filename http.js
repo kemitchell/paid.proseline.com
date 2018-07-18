@@ -492,7 +492,8 @@ function postAdd (request, response) {
         // TODO: Double check stream calls for 413.
         response.statusCode = 413
         return response.end()
-      } else return serverError(error)
+      }
+      return serverError(error)
     }
     if (!validAdd(request)) {
       return invalidRequest('invalid request')
@@ -510,13 +511,13 @@ function postAdd (request, response) {
     var name = request.message.name
     var publicKey = request.publicKey
     s3.getUser(email, function (error, user) {
-      if (error) return serverError(error, response)
+      if (error) return serverError(error)
       if (!user) return response.end()
       var customerID = user.customerID
       stripe.getActiveSubscription(
         customerID,
         function (error, subscription) {
-          if (error) return serverError(error, response)
+          if (error) return serverError(error)
           if (!subscription) return response.end()
           var capability = randomCapability()
           runSeries([
@@ -529,7 +530,7 @@ function postAdd (request, response) {
             }
           ], function (error) {
             if (error) return serverError(error)
-            response.end()
+            response.end(JSON.stringify({message: 'e-mail sent'}))
           })
         }
       )
@@ -540,7 +541,7 @@ function postAdd (request, response) {
     response.end(JSON.stringify({error: message}))
   }
 
-  function serverError (error, response) {
+  function serverError (error) {
     log.error(error)
     response.end(JSON.stringify({error: 'server error'}))
   }
