@@ -107,6 +107,8 @@ module.exports = function (serverLog) {
           .pipe(replicationStream)
       })
     })
+
+    plex.pipe(socket).pipe(plex)
   }
 }
 
