@@ -23,9 +23,9 @@ var STYLES = fs.readFileSync('styles.css')
 var ajv = new AJV()
 
 module.exports = function (serverLog) {
-  var log = pinoHTTP({logger: serverLog, genReqId: uuid.v4})
+  var httpLog = pinoHTTP({logger: serverLog, genReqId: uuid.v4})
   return function (request, response) {
-    log(request, response)
+    httpLog(request, response)
     var method = request.method
     var parsed = url.parse(request.url, true)
     var pathname = parsed.pathname
@@ -78,7 +78,6 @@ function homepage (request, response) {
 var validOrder = ajv.compile(require('./schemas/order'))
 
 function postSubscribe (request, response) {
-  var log = request.log
   runWaterfall([
     function (done) {
       concatLimit(request, 512, done)
@@ -95,15 +94,15 @@ function postSubscribe (request, response) {
     if (!validOrder(order)) {
       return invalidRequest(response, 'invalid order')
     }
-    log.info('valid order')
+    request.log.info('valid order')
     if (!validSignature(order)) {
       return invalidRequest(response, 'invalid signature')
     }
-    log.info('valid signature')
+    request.log.info('valid signature')
     if (!unexpired(order)) {
       return invalidRequest(response, 'order expired')
     }
-    log.info('unexpired')
+    request.log.info('unexpired')
     var email = order.message.email
     var token = order.message.token
     var publicKey = order.publicKey
@@ -112,30 +111,30 @@ function postSubscribe (request, response) {
 
       // There is no Stripe customer for the e-mail address.
       if (!user) {
-        log.info('no existing Stripe customer')
+        request.log.info('no existing Stripe customer')
         var newCustomerID
         return runWaterfall([
           function (done) {
             stripe.createCustomer(email, token, done)
           },
           function (customerID, done) {
-            log.info({customerID}, 'created Stripe customer')
+            request.log.info({customerID}, 'created Stripe customer')
             newCustomerID = customerID
             s3.putUser(email, {active: false, customerID}, done)
           },
           function (done) {
-            log.info('put user to s3')
+            request.log.info('put user to s3')
             s3.putPublicKey(publicKey, {email, first: true}, done)
           }
         ], function (error) {
           if (error) return serverError(error)
-          log.info('put public key to s3')
+          request.log.info('put public key to s3')
           sendEMail(newCustomerID)
         })
       }
 
       // There is already a Stripe customer for the e-mail address.
-      log.info(user, 'existing Stripe customer')
+      request.log.info(user, 'existing Stripe customer')
       var customerID = user.customerID
       stripe.getActiveSubscription(
         customerID,
@@ -144,7 +143,7 @@ function postSubscribe (request, response) {
           if (subscription) {
             return invalidRequest(response, 'already subscribed')
           }
-          log.info('got subscription')
+          request.log.info('got subscription')
           sendEMail(customerID)
         }
       )
@@ -157,7 +156,7 @@ function postSubscribe (request, response) {
             s3.putCapability(email, customerID, capability, data, done)
           },
           function (done) {
-            log.info('put capability to s3')
+            request.log.info('put capability to s3')
             mailgun.subscribe(request.log, email, capability, done)
           }
         ], function (error) {
@@ -173,7 +172,7 @@ function postSubscribe (request, response) {
   }
 
   function serverError (error) {
-    log.error(error)
+    request.log.error(error)
     response.end(JSON.stringify({error: 'server error'}))
   }
 }
@@ -215,7 +214,6 @@ function notFound (request, response) {
 }
 
 function getSubscribe (request, response) {
-  var log = request.log
   var capability = request.query.capability
   if (!capability || !validCapability(capability)) {
     response.statusCode = 400
@@ -235,7 +233,7 @@ function getSubscribe (request, response) {
       return response.end()
     }
     var customerID = data.customerID
-    log.info(data, 'capability')
+    request.log.info(data, 'capability')
     runSeries([
       logSuccess(function (done) {
         s3.deleteCapability(capability, done)
@@ -260,7 +258,7 @@ function getSubscribe (request, response) {
     return function (done) {
       action(function (error) {
         if (error) return done(error)
-        log.info(success)
+        request.log.info(success)
         done()
       })
     }
@@ -275,16 +273,15 @@ function getSubscribe (request, response) {
 }
 
 function postCancel (request, response) {
-  var log = request.log
   parseBody(function (error, email) {
     if (error) return serverError(error)
-    log.info({email}, 'email')
+    request.log.info({email}, 'email')
     s3.getUser(email, function (error, user) {
       if (error) return serverError(error)
       if (!user) return showSuccessPage()
       var capability = randomCapability()
       mailgun.cancel(
-        log, email, capability,
+        request.log, email, capability,
         function (error) {
           if (error) return serverError(error)
           showSuccessPage()
@@ -328,7 +325,7 @@ function postCancel (request, response) {
   }
 
   function serverError (error) {
-    log.error(error)
+    request.log.error(error)
     response.statusCode = 500
     response.end(serverErrorPage())
   }
@@ -366,19 +363,18 @@ function finishCancel (request, response) {
     response.statusCode = 400
     return response.end()
   }
-  var log = request.log
   runWaterfall([
     function getCapability (done) {
       s3.getCapability(capability, done)
     },
     function getSubscription (capability, done) {
-      log.info(capability, 'capability')
+      request.log.info(capability, 'capability')
       stripe.getActiveSubscription(
         capability.customerID, done
       )
     },
     function unsubscribe (subscription, done) {
-      log.info(subscription, 'subscription')
+      request.log.info(subscription, 'subscription')
       if (!subscription) {
         return done(new Error('no active subscription'))
       }
@@ -386,11 +382,11 @@ function finishCancel (request, response) {
     }
   ], function (error) {
     if (error) {
-      log.error(error)
+      request.log.error(error)
       response.statusCode = 500
       return response.end(serverErrorPage())
     }
-    log.info('unsubscribed')
+    request.log.info('unsubscribed')
     response.setHeader('Content-Type', 'text/html')
     response.end(messagePage(
       'Canceled',
@@ -449,7 +445,6 @@ function styles (request, response) {
 }
 
 function webhook (request, response) {
-  var log = request.log
   simpleConcat(request, function (error, buffer) {
     if (error) {
       response.statusCode = 400
@@ -459,7 +454,7 @@ function webhook (request, response) {
       response.statusCode = 400
       return response.end('invalid signature')
     }
-    log.info('valid signature')
+    request.log.info('valid signature')
     parse(buffer, function (error, parsed) {
       if (error) {
         response.statusCode = 400
@@ -470,7 +465,7 @@ function webhook (request, response) {
           response.statusCode = 500
           response.end()
         }
-        log.info({objectID}, 'logged')
+        request.log.info({objectID}, 'logged')
         response.end()
       })
     })
@@ -480,7 +475,6 @@ function webhook (request, response) {
 var validAdd = ajv.compile(require('./schemas/add'))
 
 function postAdd (request, response) {
-  var log = request.log
   runWaterfall([
     function (done) {
       concatLimit(request, 512, done)
@@ -498,15 +492,15 @@ function postAdd (request, response) {
     if (!validAdd(request)) {
       return invalidRequest('invalid request')
     }
-    log.info('invalid request')
+    request.log.info('invalid request')
     if (!validSignature(request)) {
       return invalidRequest('invalid signature')
     }
-    log.info('valid signature')
+    request.log.info('valid signature')
     if (!unexpired(request)) {
       return invalidRequest('request expired')
     }
-    log.info('unexpired')
+    request.log.info('unexpired')
     var email = request.message.email
     var name = request.message.name
     var publicKey = request.publicKey
@@ -542,13 +536,12 @@ function postAdd (request, response) {
   }
 
   function serverError (error) {
-    log.error(error)
+    request.log.error(error)
     response.end(JSON.stringify({error: 'server error'}))
   }
 }
 
 function getAdd (request, response) {
-  var log = request.log
   var capability = request.query.capability
   if (!capability || !validCapability(capability)) {
     return invalidRequest('invalid capability')
@@ -561,7 +554,7 @@ function getAdd (request, response) {
     var email = data.email
     var name = data.name
     var publicKey = data.publicKey
-    log.info(data, 'capability')
+    request.log.info(data, 'capability')
     runSeries([
       logSuccess(function (done) {
         s3.deleteCapability(capability, done)
@@ -587,7 +580,7 @@ function getAdd (request, response) {
     return function (done) {
       action(function (error) {
         if (error) return done(error)
-        log.info(success)
+        request.log.info(success)
         done()
       })
     }
