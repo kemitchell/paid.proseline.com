@@ -1,4 +1,3 @@
-var data = require('./s3')
 var stripe = require('stripe')
 
 // TODO: Implement Stripe webhook for payment failure.
@@ -47,7 +46,7 @@ function unsubscribe (subscriptionID, callback) {
 }
 
 function getActiveSubscription (customerID, callback) {
-  data.getCustomer(customerID, function (error, customer) {
+  getCustomer(customerID, function (error, customer) {
     if (error) return callback(error)
     var subscriptions = customer.subscriptions.data
     var active = subscriptions.filter(function (subscription) {
