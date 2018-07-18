@@ -506,13 +506,13 @@ function postAdd (request, response) {
     var publicKey = add.publicKey
     s3.getUser(email, function (error, user) {
       if (error) return serverError(error)
-      if (!user) return response.end()
+      if (!user) return invalidRequest('no user with that e-mail')
       var customerID = user.customerID
       stripe.getActiveSubscription(
         customerID,
         function (error, subscription) {
           if (error) return serverError(error)
-          if (!subscription) return response.end()
+          if (!subscription) return invalidRequest('no active subscription')
           var capability = randomCapability()
           runSeries([
             function (done) {
