@@ -1,3 +1,4 @@
+var assert = require('assert')
 var stripe = require('stripe')
 
 // TODO: Implement Stripe webhook for payment failure.
@@ -19,18 +20,25 @@ module.exports = {
 }
 
 function createCustomer (email, source, callback) {
+  assert.equal(typeof email, 'string')
+  assert.equal(typeof source, 'string')
+  assert.equal(typeof callback, 'function')
   client
     .customers
     .create({email, source}, callback)
 }
 
 function getCustomer (customerID, callback) {
+  assert.equal(typeof customerID, 'string')
+  assert.equal(typeof callback, 'function')
   client
     .customers
     .retrieve(customerID, callback)
 }
 
 function subscribe (customerID, callback) {
+  assert.equal(typeof customerID, 'string')
+  assert.equal(typeof callback, 'function')
   client
     .subscriptions
     .create({
@@ -40,12 +48,16 @@ function subscribe (customerID, callback) {
 }
 
 function unsubscribe (subscriptionID, callback) {
+  assert.equal(typeof subscriptionID, 'string')
+  assert.equal(typeof callback, 'function')
   client
     .subscriptions
     .del(subscriptionID, callback)
 }
 
 function getActiveSubscription (customerID, callback) {
+  assert.equal(typeof customerID, 'string')
+  assert.equal(typeof callback, 'function')
   getCustomer(customerID, function (error, customer) {
     if (error) return callback(error)
     var subscriptions = customer.subscriptions.data
