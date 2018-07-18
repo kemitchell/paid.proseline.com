@@ -120,7 +120,7 @@ function postSubscribe (request, response) {
             log.info({customerID}, 'created Stripe customer')
             s3.putUser(email, {active: false, customerID}, done)
           },
-          function (_, done) {
+          function (done) {
             log.info('put user to s3')
             s3.putPublicKey(publicKey, {email, first: true}, done)
           }
