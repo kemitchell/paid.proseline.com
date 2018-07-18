@@ -16,7 +16,7 @@ module.exports = function (serverLog) {
     var sharedStreams = new Map()
 
     // Invitation
-    var discoveryKeysStream = plex.createSharedStream('discoveryKeys')
+    var invitationTransport = plex.createSharedStream('discoveryKeys')
     var invitationStream = protocol.Invitation()
 
     invitationStream.on('invitation', function (envelope) {
@@ -82,7 +82,7 @@ module.exports = function (serverLog) {
     })
 
     invitationStream
-      .pipe(discoveryKeysStream)
+      .pipe(invitationTransport)
       .pipe(invitationStream)
 
     // Replication
