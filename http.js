@@ -492,7 +492,7 @@ function postAdd (request, response) {
     if (!validAdd(request)) {
       return invalidRequest('invalid request')
     }
-    request.log.info('invalid request')
+    request.log.info('valid request')
     if (!validSignature(request)) {
       return invalidRequest('invalid signature')
     }
