@@ -162,7 +162,7 @@ function postSubscribe (request, response) {
           }
         ], function (error) {
           if (error) return serverError(error)
-          response.end({message: 'e-mail sent'})
+          response.end(JSON.stringify({message: 'e-mail sent'}))
         })
       }
     })
