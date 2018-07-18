@@ -9,7 +9,7 @@ var stripe = require('./stripe')
 var uuid = require('uuid')
 
 module.exports = function (serverLog) {
-  return function (socket) {
+  return function (socket, request) {
     var log = serverLog.child({socket: uuid.v4()})
     log.info('connection')
     var plex = multiplex()

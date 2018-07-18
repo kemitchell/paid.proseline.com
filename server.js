@@ -2,19 +2,16 @@ var http = require('http')
 var httpHandler = require('./http')
 var pino = require('pino')
 var websocketHandler = require('./ws')
-var ws = require('ws')
+var websocketStream = require('websocket-stream')
 
 var log = pino()
 
 var httpServer = http.createServer(httpHandler(log))
 
-/* eslint-disable no-new */
-new ws.Server({
+websocketStream.createServer({
   server: httpServer,
   perMessageDeflate: false
-}, websocketHandler(log))
-  .on('connection', websocketHandler(log.child({subsytem: 'ws'})))
-/* eslint-enable no-new */
+}, websocketHandler(log.child({subsytem: 'ws'})))
 
 function trap () {
   log.info('signal')
