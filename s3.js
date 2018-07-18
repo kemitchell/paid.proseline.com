@@ -200,7 +200,7 @@ function capabilityKey (capability) {
 exports.putCapability = function (email, customerID, capability, data, callback) {
   assert.equal(typeof email, 'string')
   assert.equal(typeof customerID, 'string')
-  assert.equal(typeof capabiliti, 'string')
+  assert.equal(typeof capability, 'string')
   assert.equal(typeof data, 'object')
   assert.equal(typeof callback, 'function')
   data.date = new Date().toISOString()
