@@ -531,8 +531,9 @@ function postAdd (request, response) {
     })
   })
 
-  function invalidRequest (message) {
-    response.end(JSON.stringify({error: message}))
+  function invalidRequest (error) {
+    request.log.error(error)
+    response.end(JSON.stringify({error}))
   }
 
   function serverError (error) {
