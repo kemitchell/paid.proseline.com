@@ -516,7 +516,7 @@ function postAdd (request, response) {
           var capability = randomCapability()
           runSeries([
             function (done) {
-              var data = {name, publicKey}
+              var data = {name, publicKey, type: 'add'}
               s3.putCapability(email, customerID, capability, data, done)
             },
             function (done) {
