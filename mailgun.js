@@ -54,7 +54,7 @@ function send (requestLog, options, callback) {
   var request = https.request({
     method: 'POST',
     host: 'api.mailgun.net',
-    path: `/v3/${process.env.MAILGUN_DOMAIN}/message`,
+    path: `/v3/${process.env.MAILGUN_DOMAIN}/messages`,
     auth: `api:${process.env.MAILGUN_API_KEY}`,
     headers: form.getHeaders()
   })
