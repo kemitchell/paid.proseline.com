@@ -79,6 +79,7 @@ module.exports = function (serverLog) {
 
     invitationStream.handshake(function (error) {
       if (error) return log.error(error)
+      log.info('handshake')
     })
 
     invitationStream
