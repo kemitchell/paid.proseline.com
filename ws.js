@@ -115,9 +115,11 @@ module.exports = function (serverLog) {
 function ensureActiveSubscription (publicKey, callback) {
   s3.getPublicKey(publicKey, function (error, record) {
     if (error) return callback(error)
+    if (!record) return callback()
     var email = record.email
     s3.getUser(email, function (error, user) {
       if (error) return callback(error)
+      if (!user) return callback()
       stripe.getActiveSubscription(
         user.customerID,
         function (error, subscription) {
