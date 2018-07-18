@@ -156,7 +156,7 @@ exports.listUserProjects = function (email, callback) {
 
 function publicKeyKey (publicKey) {
   assert.equal(typeof publicKey, 'string')
-  return `/publicKeys/${publicKey}`
+  return `publicKeys/${publicKey}`
 }
 
 exports.getPublicKey = function (publicKey, callback) {
