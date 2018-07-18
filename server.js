@@ -13,6 +13,7 @@ new ws.Server({
   server: httpServer,
   perMessageDeflate: false
 }, websocketHandler(log))
+  .on('connection', websocketHandler(log.child({subsytem: 'ws'})))
 /* eslint-enable no-new */
 
 function trap () {
