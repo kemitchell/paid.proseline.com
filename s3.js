@@ -131,9 +131,9 @@ function userProjectKey (email, discoveryKey) {
   return `${userKey(email)}/projects/${discoveryKey}`
 }
 
-exports.putUserProject = function (discoveryKey, email, callback) {
-  assert.equal(typeof discoveryKey, 'string')
+exports.putUserProject = function (email, discoveryKey, callback) {
   assert.equal(typeof email, 'string')
+  assert.equal(typeof discoveryKey, 'string')
   assert.equal(typeof callback, 'function')
   putJSONObject(
     userProjectKey(email, discoveryKey),

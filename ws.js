@@ -36,7 +36,7 @@ module.exports = function (serverLog) {
             s3.putProjectUser(discoveryKey, email, done)
           },
           function (done) {
-            s3.putUserProject(discoveryKey, publicKey, done)
+            s3.putUserProject(email, discoveryKey, done)
           }
         ], function (error) {
           if (error) return log.error(error)
