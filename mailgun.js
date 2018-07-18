@@ -1,6 +1,7 @@
 var FormData = require('form-data')
 var https = require('https')
 var pump = require('pump')
+var simpleConcat = require('simple-concat')
 
 var KEY = process.env.MAILGUN_KEY
 var DOMAIN = process.env.MAILGUN_DOMAIN
@@ -68,23 +69,11 @@ function send (requestLog, options, callback) {
       log.info(options, 'sent')
       return callback()
     }
-    var chunks = []
-    response
-      .on('data', function (chunk) {
-        chunks.push(chunk)
-      })
-      .once('error', function (error) {
-        log.error(error)
-        callback(error)
-      })
-      .once('end', function () {
-        var body = Buffer.concat(chunks)
-        var error = {
-          status: response.statusCode,
-          body: body.toString()
-        }
-        log.error(error)
-        callback(error)
-      })
+    simpleConcat(response, function (error, body) {
+      if (error) return callback(error)
+      var errorMessage = new Error(body.toString())
+      errorMessage.statusCode = response.statusCode
+      callback(errorMessage)
+    })
   }))
 }
