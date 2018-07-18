@@ -18,7 +18,6 @@
         "name": {
           "title": "Display Name for the Public Key",
           "type": "string",
-          "pattern": "^[a-z0-9-]{3,32}$",
           "minLength": 3,
           "maxLength": 32
         },
