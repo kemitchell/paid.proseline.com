@@ -65,7 +65,7 @@ function getActiveSubscription (customerID, callback) {
     if (error) return callback(error)
     var subscriptions = customer.subscriptions.data
     var active = subscriptions.filter(function (subscription) {
-      return subscription.active
+      return subscription.status === 'active'
     })
     var length = active.length
     if (length === 0) return callback(null, null)
