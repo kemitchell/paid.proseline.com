@@ -223,6 +223,13 @@ function getSubscribe (request, response) {
   }
   s3.getCapability(capability, function (error, data) {
     if (error) return serverError(error)
+    if (!data) {
+      response.statusCode = 400
+      return response.end(messagePage(
+        'Invalid Link',
+        ['The link you followed is invalid or expired.']
+      ))
+    }
     if (data.type !== 'subscribe') {
       response.statusCode = 400
       return response.end()
