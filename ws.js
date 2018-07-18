@@ -10,7 +10,7 @@ var uuid = require('uuid')
 
 module.exports = function (serverLog) {
   return function (socket) {
-    var log = serverLog.child({request: uuid.v4()})
+    var log = serverLog.child({socket: uuid.v4()})
     log.info('connection')
     var plex = multiplex()
     var sharedStreams = new Map()
@@ -22,10 +22,12 @@ module.exports = function (serverLog) {
     invitationStream.on('invitation', function (envelope) {
       var publicKey = envelope.publicKey
       var secretKey = envelope.message.secretKey
+      log.info({publicKey, secretKey}, 'invited')
       ensureActiveSubscription(publicKey, function (error, email, subscription) {
         if (error) return log.error(error)
         if (!subscription) return log.info('no active subscription')
         var discoveryKey = hashHexString(secretKey)
+        log.info({discoveryKey}, 'putting')
         runParallel([
           function (done) {
             s3.putProjectSecretKey(discoveryKey, secretKey, done)
@@ -36,7 +38,10 @@ module.exports = function (serverLog) {
           function (done) {
             s3.putUserProject(discoveryKey, publicKey, done)
           }
-        ])
+        ], function (error) {
+          if (error) return log.error(error)
+          log.info('done')
+        })
       })
     })
 
@@ -45,6 +50,7 @@ module.exports = function (serverLog) {
       ensureActiveSubscription(publicKey, function (error, email, subscription) {
         if (error) return log.error(error)
         if (!subscription) return log.info('no active subscription')
+        log.info({publicKey}, 'requested')
         s3.listUserProjects(email, function (error, discoveryKeys) {
           if (error) return log.error(error)
           discoveryKeys.forEach(function (discoveryKey) {
@@ -63,6 +69,7 @@ module.exports = function (serverLog) {
               invitation.signature = signature.toString('hex')
               invitationStream.invitation(invitation, function (error) {
                 if (error) return log.error(error)
+                log.info({discoveryKey}, 'invited')
               })
             })
           })
@@ -84,6 +91,7 @@ module.exports = function (serverLog) {
         if (!secretKey) {
           return sharedStream.destroy()
         }
+        log.info({discoveryKey}, 'replicating')
         var replicationStream = makeReplicationStream({
           secretKey, discoveryKey, log, s3
         })
