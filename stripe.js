@@ -79,6 +79,8 @@ function getActiveSubscription (customerID, callback) {
 }
 
 function validSignature (request, body) {
+  assert.equal(typeof request, 'object')
+  assert(Buffer.isBuffer(body))
   try {
     client
       .webhooks
