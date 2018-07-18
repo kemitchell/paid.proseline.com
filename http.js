@@ -187,13 +187,13 @@ function validCapability (string) {
   return /^[a-f0-9]{64}$/.test(string)
 }
 
-var ORDER_EXPIRATION_PERIOD = 7 * 24 * 60 * 60 * 1000
+var EXPIRATION_PERIOD = 7 * 24 * 60 * 60 * 1000
 
-function unexpired (order) {
+function unexpired (body) {
   var now = new Date()
-  var date = new Date(order.message.date)
+  var date = new Date(body.message.date)
   var difference = now - date
-  return difference < ORDER_EXPIRATION_PERIOD
+  return difference < EXPIRATION_PERIOD
 }
 
 function validSignature (order) {
@@ -497,7 +497,7 @@ function postAdd (request, response) {
       return invalidRequest('invalid signature')
     }
     request.log.info('valid signature')
-    if (!unexpired(request)) {
+    if (!unexpired(add)) {
       return invalidRequest('request expired')
     }
     request.log.info('unexpired')
