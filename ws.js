@@ -66,7 +66,7 @@ module.exports = function (serverLog) {
         s3.listUserProjects(email, function (error, discoveryKeys) {
           if (error) return log.error(error)
           discoveryKeys.forEach(function (discoveryKey) {
-            s3.getProjectSecretKey(discoveryKeys, function (error, secretKey) {
+            s3.getProjectSecretKey(discoveryKey, function (error, secretKey) {
               if (error) return log.error(error)
               var invitation = {
                 message: {secretKey},
