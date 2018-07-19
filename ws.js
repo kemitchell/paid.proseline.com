@@ -22,7 +22,7 @@ module.exports = function (serverLog) {
     invitationStream.on('invitation', function (envelope) {
       var publicKey = envelope.publicKey
       var secretKey = envelope.message.secretKey
-      log.info({publicKey, secretKey}, 'invited')
+      log.info({publicKey, secretKey}, 'received invitation')
       ensureActiveSubscription(publicKey, function (error, email, subscription) {
         if (error) return log.error(error)
         if (!subscription) return log.info('no active subscription')
@@ -52,17 +52,16 @@ module.exports = function (serverLog) {
               .pipe(sharedStream)
               .pipe(replicationStream)
           }
-          log.info('done')
         })
       })
     })
 
     invitationStream.on('request', function (envelope) {
       var publicKey = envelope.publicKey
+      log.info({publicKey}, 'received request')
       ensureActiveSubscription(publicKey, function (error, email, subscription) {
         if (error) return log.error(error)
         if (!subscription) return log.info('no active subscription')
-        log.info({publicKey}, 'requested')
         s3.listUserProjects(email, function (error, discoveryKeys) {
           if (error) return log.error(error)
           discoveryKeys.forEach(function (discoveryKey) {
@@ -81,7 +80,7 @@ module.exports = function (serverLog) {
               invitation.signature = signature.toString('hex')
               invitationStream.invitation(invitation, function (error) {
                 if (error) return log.error(error)
-                log.info({discoveryKey}, 'invited')
+                log.info({discoveryKey}, 'sent invitation')
               })
             })
           })
@@ -91,7 +90,7 @@ module.exports = function (serverLog) {
 
     invitationStream.handshake(function (error) {
       if (error) return log.error(error)
-      log.info('handshake')
+      log.info('sent handshake')
     })
 
     invitationStream
@@ -177,9 +176,10 @@ function makeReplicationStream (options) {
             requestedFromPeer.splice(requestIndex, 1)
             return
           }
-          log.info(offer, 'offering')
+          log.info(offer, 'sending offer')
           protocol.offer(offer, function (error) {
             if (error) return log.error(error)
+            log.info(offer, 'sent offer')
           })
         })
       })
@@ -188,16 +188,19 @@ function makeReplicationStream (options) {
 
   // When our peer requests an envelope...
   returned.on('request', function (request) {
-    log.info('received request')
     var publicKey = request.publicKey
     var index = request.index
+    var pair = {publicKey, index}
+    log.info(pair, 'received request')
     s3.getEnvelope(
       discoveryKey, publicKey, index,
       function (error, envelope) {
         if (error) return log.error(error)
-        log.info({discoveryKey, index}, 'sending')
+        if (!envelope) return
+        log.info(pair, 'sending envelope')
         returned.envelope(envelope, function (error) {
           if (error) return log.error(error)
+          log.info(pair, 'sent envelope')
         })
       }
     )
@@ -210,17 +213,12 @@ function makeReplicationStream (options) {
     var offeredIndex = offer.index
     s3.getLastIndex(discoveryKey, publicKey, function (error, last) {
       if (error) return log.error(error)
-      if (last === undefined) last = -1
-      var index = last + 1
-      requestNextEnvelope()
-      function requestNextEnvelope () {
-        if (index > offeredIndex) return
-        log.info({publicKey, index}, 'requesting')
-        protocol.request({publicKey, index}, function (error) {
+      for (var index = last + 1; index <= offeredIndex; index++) {
+        var pair = {publicKey, index}
+        log.info(pair, 'sending request')
+        protocol.request(pair, function (error) {
           if (error) return log.error(error)
-          requestedFromPeer.push({publicKey, index})
-          index++
-          requestNextEnvelope()
+          requestedFromPeer.push(pair)
         })
       }
     })
@@ -228,7 +226,7 @@ function makeReplicationStream (options) {
 
   // When our peer sends an envelope...
   returned.on('envelope', function (envelope) {
-    log.info('received envelope')
+    log.info(evenlope, 'received envelope')
     if (envelope.messsage.project !== discoveryKey) {
       return log.error({envelope, discoveryKey}, 'project mismatch')
     }
