@@ -40,18 +40,7 @@ module.exports = function (serverLog) {
           }
         ], function (error) {
           if (error) return log.error(error)
-          if (!sharedStreams.has(discoveryKey)) {
-            log.info({discoveryKey}, 'replicating')
-            var replicationStream = makeReplicationStream({
-              secretKey, discoveryKey, log, s3
-            })
-            var sharedStream = plex.createSharedStream(discoveryKey)
-            var record = {sharedStream, replicationStream}
-            sharedStreams.set(discoveryKey, record)
-            replicationStream
-              .pipe(sharedStream)
-              .pipe(replicationStream)
-          }
+          replicateProject({secretKey, discoveryKey})
         })
       })
     })
@@ -98,28 +87,39 @@ module.exports = function (serverLog) {
       .pipe(invitationStream)
 
     // Replication
-    plex.on('stream', function (sharedStream, discoveryKey) {
+    plex.on('stream', function (stream, discoveryKey) {
       s3.getProjectSecretKey(discoveryKey, function (error, secretKey) {
         if (error) {
           log.error({discoveryKey}, error)
-          return sharedStream.destroy()
+          return stream.destroy()
         }
         if (!secretKey) {
-          return sharedStream.destroy()
+          return stream.destroy()
         }
-        log.info({discoveryKey}, 'replicating')
-        var replicationStream = makeReplicationStream({
-          secretKey, discoveryKey, log, s3
-        })
-        var record = {sharedStream, replicationStream}
-        sharedStreams.set(discoveryKey, record)
-        replicationStream
-          .pipe(sharedStream)
-          .pipe(replicationStream)
+        replicateProject({secretKey, discoveryKey, stream})
       })
     })
 
     plex.pipe(socket).pipe(plex)
+
+    function replicateProject (options) {
+      assert(typeof options, 'object')
+      assert.equal(typeof options.secretKey, 'string')
+      assert.equal(typeof options.discoveryKey, 'string')
+      var discoveryKey = options.discoveryKey
+      var secretKey = options.secretKey
+      if (sharedStreams.has(discoveryKey)) return
+      log.info({discoveryKey}, 'replicating')
+      var replicationStream = makeReplicationStream({
+        secretKey, discoveryKey, log
+      })
+      var stream = options.stream || plex.createSharedStream(discoveryKey)
+      var record = {stream, replicationStream}
+      sharedStreams.set(discoveryKey, record)
+      replicationStream
+        .pipe(stream)
+        .pipe(replicationStream)
+    }
   }
 }
 
@@ -143,10 +143,10 @@ function ensureActiveSubscription (publicKey, callback) {
 }
 
 function makeReplicationStream (options) {
+  assert.equal(typeof options, 'object')
   assert.equal(typeof options.secretKey, 'string')
   assert.equal(typeof options.discoveryKey, 'string')
   assert(options.log)
-  assert(options.s3)
   var secretKey = options.secretKey
   var discoveryKey = options.discoveryKey
   var log = options.log.child({discoveryKey})
