@@ -159,30 +159,30 @@ function makeReplicationStream (options) {
     log.info('received handshake')
     s3.listProjectPublicKeys(discoveryKey, function (error, publicKeys) {
       if (error) return log.error(error)
-      runParallel(publicKeys.map(function (publicKey) {
-        return function (done) {
-          s3.getLastIndex(discoveryKey, publicKey, function (error, index) {
-            if (error) {
-              log.error(error)
-              return done()
-            }
-            var offer = {publicKey, index}
-            var requestIndex = requestedFromPeer
-              .findIndex(function (request) {
-                return (
-                  request.publicKey === offer.publicKey &&
-                  request.index === offer.index
-                )
-              })
-            if (requestIndex !== -1) {
-              requestedFromPeer.splice(requestIndex, 1)
-              return done()
-            }
-            log.info(offer, 'offering')
-            protocol.offer(offer, done)
+      log.info({publicKeys}, 'public keys')
+      publicKeys.forEach(function (publicKey) {
+        s3.getLastIndex(discoveryKey, publicKey, function (error, index) {
+          if (error) return log.error(error)
+          var offer = {publicKey, index}
+          log.info(offer, 'have')
+          var requestIndex = requestedFromPeer
+            .findIndex(function (request) {
+              return (
+                request.publicKey === offer.publicKey &&
+                request.index === offer.index
+              )
+            })
+          if (requestIndex !== -1) {
+            log.info(offer, 'already requested')
+            requestedFromPeer.splice(requestIndex, 1)
+            return
+          }
+          log.info(offer, 'offering')
+          protocol.offer(offer, function (error) {
+            if (error) return log.error(error)
           })
-        }
-      }))
+        })
+      })
     })
   })
 
