@@ -226,7 +226,7 @@ function makeReplicationStream (options) {
 
   // When our peer sends an envelope...
   returned.on('envelope', function (envelope) {
-    log.info(evenlope, 'received envelope')
+    log.info(envelope, 'received envelope')
     if (envelope.messsage.project !== discoveryKey) {
       return log.error({envelope, discoveryKey}, 'project mismatch')
     }
