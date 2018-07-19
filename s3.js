@@ -51,7 +51,10 @@ exports.getLastIndex = function (discoveryKey, publicKey, callback) {
     Prefix: `${projectKey(discoveryKey)}/envelopes/${publicKey}/`,
     MaxKeys: 1
   }, function (error, data) {
-    if (error) return callback(error)
+    if (error) {
+      if (error.code === 'NoSuchKey') return callback(null, 0)
+      return callback(error)
+    }
     var contents = data.Contents
     if (contents.length === 0) return callback(null, undefined)
     var key = contents[0].split(DELIMITER)[4]
@@ -287,7 +290,10 @@ function listAllKeys (prefix, callback) {
     }
     if (marker) options.Marker = marker
     s3.listObjects(options, function (error, data) {
-      if (error) return callback(error)
+      if (error) {
+        if (error.code === 'NoSuchKey') return callback(null, [])
+        return callback(error)
+      }
       var contents = data.Contents.map(function (element) {
         return element.Key
       })
