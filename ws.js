@@ -77,6 +77,10 @@ module.exports = function (serverLog) {
       })
     })
 
+    invitationStream.on('invalid', function (message) {
+      log.error({message}, 'invalid')
+    })
+
     invitationStream.handshake(function (error) {
       if (error) return log.error(error)
       log.info('sent handshake')
@@ -109,9 +113,10 @@ module.exports = function (serverLog) {
       var discoveryKey = options.discoveryKey
       var secretKey = options.secretKey
       if (sharedStreams.has(discoveryKey)) return
-      log.info({discoveryKey}, 'replicating')
+      var childLog = log.child({discoveryKey})
+      childLog.info({discoveryKey}, 'replicating')
       var replicationStream = makeReplicationStream({
-        secretKey, discoveryKey, log
+        secretKey, discoveryKey, log: childLog
       })
       var stream = options.stream || plex.createSharedStream(discoveryKey)
       var record = {stream, replicationStream}
@@ -233,6 +238,10 @@ function makeReplicationStream (options) {
     s3.putEnvelope(envelope, function (error) {
       if (error) return log.error(error)
     })
+  })
+
+  returned.on('invalid', function (message) {
+    log.error({message}, 'invalid')
   })
 
   returned.handshake(function (error) {
