@@ -16,79 +16,13 @@ module.exports = function (serverLog) {
     var sharedStreams = new Map()
 
     // Invitation
-    var invitationTransport = plex.createSharedStream('invitation')
-    var invitationStream = protocol.Invitation()
-
-    invitationStream.on('invitation', function (envelope) {
-      var publicKey = envelope.publicKey
-      var secretKey = envelope.message.secretKey
-      log.info({publicKey, secretKey}, 'received invitation')
-      ensureActiveSubscription(publicKey, function (error, email, subscription) {
-        if (error) return log.error(error)
-        if (!subscription) return log.info('no active subscription')
-        var discoveryKey = hashHexString(secretKey)
-        log.info({discoveryKey}, 'putting')
-        runParallel([
-          function (done) {
-            s3.putProjectSecretKey(discoveryKey, secretKey, done)
-          },
-          function (done) {
-            s3.putProjectUser(discoveryKey, email, done)
-          },
-          function (done) {
-            s3.putUserProject(email, discoveryKey, done)
-          }
-        ], function (error) {
-          if (error) return log.error(error)
-          replicateProject({secretKey, discoveryKey})
-        })
+    connect(
+      plex.createSharedStream('invitation'),
+      makeInvitationStream({
+        log: log.child({protocol: 'invitation'}),
+        replicateProject
       })
-    })
-
-    invitationStream.on('request', function (envelope) {
-      var publicKey = envelope.publicKey
-      log.info({publicKey}, 'received request')
-      ensureActiveSubscription(publicKey, function (error, email, subscription) {
-        if (error) return log.error(error)
-        if (!subscription) return log.info('no active subscription')
-        s3.listUserProjects(email, function (error, discoveryKeys) {
-          if (error) return log.error(error)
-          discoveryKeys.forEach(function (discoveryKey) {
-            s3.getProjectSecretKey(discoveryKey, function (error, secretKey) {
-              if (error) return log.error(error)
-              var invitation = {
-                message: {secretKey},
-                publicKey: process.env.PUBLIC_KEY
-              }
-              var signature = Buffer.alloc(sodium.crypto_sign_BYTES)
-              sodium.crypto_sign_detached(
-                signature,
-                Buffer.from(stringify(invitation.message), 'utf8'),
-                Buffer.from(process.env.SECRET_KEY, 'hex')
-              )
-              invitation.signature = signature.toString('hex')
-              invitationStream.invitation(invitation, function (error) {
-                if (error) return log.error(error)
-                log.info({discoveryKey}, 'sent invitation')
-              })
-            })
-          })
-        })
-      })
-    })
-
-    invitationStream.on('invalid', function (message) {
-      log.error({message}, 'invalid')
-    })
-
-    invitationStream.handshake(function (error) {
-      if (error) return log.error(error)
-      log.info('sent handshake')
-    })
-
-    invitationStream
-      .pipe(invitationTransport)
-      .pipe(invitationStream)
+    )
 
     // Replication
     plex.on('stream', function (stream, discoveryKey) {
@@ -104,7 +38,11 @@ module.exports = function (serverLog) {
       })
     })
 
-    plex.pipe(socket).pipe(plex)
+    connect(plex, socket)
+
+    function connect (a, b) {
+      a.pipe(b).pipe(a)
+    }
 
     function replicateProject (options) {
       assert(typeof options, 'object')
@@ -113,7 +51,7 @@ module.exports = function (serverLog) {
       var discoveryKey = options.discoveryKey
       var secretKey = options.secretKey
       if (sharedStreams.has(discoveryKey)) return
-      var childLog = log.child({discoveryKey})
+      var childLog = log.child({protocol: 'replication', discoveryKey})
       childLog.info({discoveryKey}, 'replicating')
       var replicationStream = makeReplicationStream({
         secretKey, discoveryKey, log: childLog
@@ -145,6 +83,84 @@ function ensureActiveSubscription (publicKey, callback) {
       )
     })
   })
+}
+
+function makeInvitationStream (options) {
+  assert.equal(typeof options, 'object')
+  assert.equal(typeof options.replicateProject, 'function')
+  assert(options.log)
+  var replicateProject = options.replicateProject
+  var log = options.log
+  var returned = new protocol.Invitation()
+
+  returned.on('invitation', function (envelope) {
+    var publicKey = envelope.publicKey
+    var secretKey = envelope.message.secretKey
+    log.info({publicKey, secretKey}, 'received invitation')
+    ensureActiveSubscription(publicKey, function (error, email, subscription) {
+      if (error) return log.error(error)
+      if (!subscription) return log.info('no active subscription')
+      var discoveryKey = hashHexString(secretKey)
+      log.info({discoveryKey}, 'putting')
+      runParallel([
+        function (done) {
+          s3.putProjectSecretKey(discoveryKey, secretKey, done)
+        },
+        function (done) {
+          s3.putProjectUser(discoveryKey, email, done)
+        },
+        function (done) {
+          s3.putUserProject(email, discoveryKey, done)
+        }
+      ], function (error) {
+        if (error) return log.error(error)
+        replicateProject({secretKey, discoveryKey})
+      })
+    })
+  })
+
+  returned.on('request', function (envelope) {
+    var publicKey = envelope.publicKey
+    log.info({publicKey}, 'received request')
+    ensureActiveSubscription(publicKey, function (error, email, subscription) {
+      if (error) return log.error(error)
+      if (!subscription) return log.info('no active subscription')
+      s3.listUserProjects(email, function (error, discoveryKeys) {
+        if (error) return log.error(error)
+        discoveryKeys.forEach(function (discoveryKey) {
+          s3.getProjectSecretKey(discoveryKey, function (error, secretKey) {
+            if (error) return log.error(error)
+            var invitation = {
+              message: {secretKey},
+              publicKey: process.env.PUBLIC_KEY
+            }
+            var signature = Buffer.alloc(sodium.crypto_sign_BYTES)
+            sodium.crypto_sign_detached(
+              signature,
+              Buffer.from(stringify(invitation.message), 'utf8'),
+              Buffer.from(process.env.SECRET_KEY, 'hex')
+            )
+            invitation.signature = signature.toString('hex')
+            returned.invitation(invitation, function (error) {
+              if (error) return log.error(error)
+              log.info({discoveryKey}, 'sent invitation')
+            })
+          })
+        })
+      })
+    })
+  })
+
+  returned.on('invalid', function (message) {
+    log.error({message}, 'invalid')
+  })
+
+  returned.handshake(function (error) {
+    if (error) return log.error(error)
+    log.info('sent handshake')
+  })
+
+  return returned
 }
 
 function makeReplicationStream (options) {
