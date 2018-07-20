@@ -13,6 +13,9 @@ module.exports = function (serverLog) {
     var log = serverLog.child({socket: uuid.v4()})
     log.info('connection')
     var plex = multiplex()
+    plex.on('error', function (error) {
+      log.error(error)
+    })
 
     // Invitation Stream
     var invitationTransport = plex.createSharedStream('invitation')
