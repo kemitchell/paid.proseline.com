@@ -1,4 +1,5 @@
 var assert = require('assert')
+var duplexify = require('duplexify')
 var multiplex = require('multiplex')
 var protocol = require('proseline-protocol')
 var runParallel = require('run-parallel')
@@ -8,38 +9,47 @@ var stringify = require('fast-json-stable-stringify')
 var stripe = require('./stripe')
 var uuid = require('uuid')
 
+var INVITATION_STREAM_NAME = 'invitation'
+
 module.exports = function (serverLog) {
   return function (socket, request) {
     var log = serverLog.child({socket: uuid.v4()})
-    log.info('connection')
+    log.info({
+      ip: request.connection.remoteAddress,
+      headers: request.headers
+    }, 'connection')
+
     var plex = multiplex()
-    plex.on('error', function (error) {
-      log.error(error)
-    })
+      .on('error', function (error) {
+        log.error(error)
+      })
+    var streams = new Map()
 
     // Invitation Stream
-    var invitationTransport = plex.createSharedStream('invitation')
+    var invitationTransport = plex.createSharedStream(INVITATION_STREAM_NAME)
+    streams.set(INVITATION_STREAM_NAME, invitationTransport)
     var invitationProtocol = makeInvitationStream({
       log: log.child({protocol: 'invitation'})
     })
-    invitationProtocol.pipe(invitationTransport).pipe(invitationProtocol)
+    connect(invitationTransport, invitationProtocol)
     invitationTransport.once('close', function () {
       invitationProtocol.destroy()
+      streams.delete(INVITATION_STREAM_NAME)
     })
 
     // Replication Streams
-    plex.on('stream', function (_, discoveryKey) {
-      var replicationTransport = plex.createSharedStream(discoveryKey)
+    plex.on('stream', function (receiveStream, discoveryKey) {
+      var replicationTransport = duplexify(
+        plex.createStream(discoveryKey),
+        receiveStream
+      )
+      streams.set(discoveryKey, replicationTransport)
       s3.getProjectSecretKey(discoveryKey, function (error, secretKey) {
         if (error) {
           log.error({discoveryKey}, error)
-          log.info('destroying')
-          return replicationTransport.destroy()
+          return destroy()
         }
-        if (!secretKey) {
-          log.info('destroying')
-          return replicationTransport.destroy()
-        }
+        if (!secretKey) return destroy()
         var childLog = log.child({protocol: 'replication', discoveryKey})
         childLog.info({discoveryKey}, 'replicating')
         var replicationProtocol = makeReplicationStream({
@@ -47,13 +57,22 @@ module.exports = function (serverLog) {
         })
         replicationProtocol.pipe(replicationTransport).pipe(replicationProtocol)
         replicationTransport.once('close', function () {
-          replicationProtocol.destroy()
+          destroy()
         })
+        function destroy () {
+          log.info('destroying')
+          replicationTransport.destroy()
+          streams.delete(discoveryKey)
+        }
       })
     })
 
-    plex.pipe(socket).pipe(plex)
+    connect(plex, socket)
   }
+}
+
+function connect (a, b) {
+  a.pipe(b).pipe(a)
 }
 
 function ensureActiveSubscription (publicKey, callback) {
@@ -177,7 +196,7 @@ function makeReplicationStream (options) {
           var offer = {publicKey, index}
           log.info(offer, 'last index')
           log.info(offer, 'sending offer')
-          protocol.offer(offer, function (error) {
+          returned.offer(offer, function (error) {
             if (error) return log.error(error)
             log.info(offer, 'sent offer')
           })
@@ -213,10 +232,11 @@ function makeReplicationStream (options) {
     var offeredIndex = offer.index
     s3.getLastIndex(discoveryKey, publicKey, function (error, last) {
       if (error) return log.error(error)
+      if (!last) last = -1
       for (var index = last + 1; index <= offeredIndex; index++) {
         var pair = {publicKey, index}
         log.info(pair, 'sending request')
-        protocol.request(pair, function (error) {
+        returned.request(pair, function (error) {
           if (error) return log.error(error)
           log.info(pair, 'sent request')
         })
@@ -230,7 +250,7 @@ function makeReplicationStream (options) {
     var index = envelope.message.index
     var pair = {publicKey, index}
     log.info(pair, 'received envelope')
-    if (envelope.messsage.project !== discoveryKey) {
+    if (envelope.message.project !== discoveryKey) {
       return log.error(pair, 'project mismatch')
     }
     log.info(pair, 'putting envelope')

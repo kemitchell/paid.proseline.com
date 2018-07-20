@@ -4,6 +4,7 @@
     "ajv": "^6.5.2",
     "aws-sdk": "^2.275.1",
     "busboy": "^0.2.14",
+    "duplexify": "^3.6.0",
     "fast-json-stable-stringify": "^2.0.0",
     "form-data": "^2.3.2",
     "json-parse-errback": "^2.0.1",
