@@ -159,6 +159,11 @@ function makeReplicationStream (options) {
 
   returned.once('handshake', function () {
     log.info('received handshake')
+    log.info('sending handshake')
+    returned.handshake(function (error) {
+      if (error) return log.error(error)
+      log.info('sent handshake')
+    })
     s3.listProjectPublicKeys(discoveryKey, function (error, publicKeys) {
       if (error) return log.error(error)
       log.info({publicKeys}, 'public keys')
@@ -233,11 +238,6 @@ function makeReplicationStream (options) {
 
   returned.on('invalid', function (message) {
     log.error({message}, 'invalid')
-  })
-
-  returned.handshake(function (error) {
-    if (error) return log.error(error)
-    log.info('sent handshake')
   })
 
   return returned
