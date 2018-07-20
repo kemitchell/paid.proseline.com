@@ -28,7 +28,8 @@ module.exports = function (serverLog) {
     })
 
     // Replication Streams
-    plex.on('stream', function (replicationTransport, discoveryKey) {
+    plex.on('stream', function (_, discoveryKey) {
+      var replicationTransport = plex.createSharedStream(discoveryKey)
       s3.getProjectSecretKey(discoveryKey, function (error, secretKey) {
         if (error) {
           log.error({discoveryKey}, error)
