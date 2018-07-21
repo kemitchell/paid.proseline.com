@@ -44,16 +44,20 @@ module.exports = function (serverLog) {
         receiveStream
       )
       streams.set(discoveryKey, replicationTransport)
-      s3.getProjectSecretKey(discoveryKey, function (error, secretKey) {
+      s3.getProjectKeys(discoveryKey, function (error, keys) {
         if (error) {
           log.error({discoveryKey}, error)
           return destroy()
         }
-        if (!secretKey) return destroy()
+        if (!keys) return destroy()
+        var replicationKey = keys.replicationKey
+        var writeSeed = keys.writeSeed
         var childLog = log.child({protocol: 'replication', discoveryKey})
         childLog.info({discoveryKey}, 'replicating')
         var replicationProtocol = makeReplicationStream({
-          secretKey, discoveryKey, log: childLog
+          encryptionKey: replicationKey,
+          seed: writeSeed,
+          log: childLog
         })
         replicationProtocol.pipe(replicationTransport).pipe(replicationProtocol)
         replicationTransport.once('close', function () {
@@ -102,16 +106,17 @@ function makeInvitationStream (options) {
 
   returned.on('invitation', function (envelope) {
     var publicKey = envelope.publicKey
-    var secretKey = envelope.message.secretKey
-    log.info({publicKey, secretKey}, 'received invitation')
+    var replicationKey = envelope.message.replicationKey
+    var writeSeed = envelope.message.writeSeed
+    log.info({publicKey, replicationKey}, 'received invitation')
     ensureActiveSubscription(publicKey, function (error, email, subscription) {
       if (error) return log.error(error)
       if (!subscription) return log.info('no active subscription')
-      var discoveryKey = hashHexString(secretKey)
+      var discoveryKey = hashHexString(replicationKey)
       log.info({discoveryKey}, 'putting')
       runParallel([
         function (done) {
-          s3.putProjectSecretKey(discoveryKey, secretKey, done)
+          s3.putProjecKeys(discoveryKey, replicationKey, writeSeed, done)
         },
         function (done) {
           s3.putProjectUser(discoveryKey, email, done)
@@ -134,10 +139,10 @@ function makeInvitationStream (options) {
       s3.listUserProjects(email, function (error, discoveryKeys) {
         if (error) return log.error(error)
         discoveryKeys.forEach(function (discoveryKey) {
-          s3.getProjectSecretKey(discoveryKey, function (error, secretKey) {
+          s3.getProjectKeys(discoveryKey, function (error, keys) {
             if (error) return log.error(error)
             var invitation = {
-              message: {secretKey},
+              message: {replicationKey: keys.replicationKey, writeSeed: keys.writeSeed},
               publicKey: process.env.PUBLIC_KEY
             }
             var signature = Buffer.alloc(sodium.crypto_sign_BYTES)
@@ -171,14 +176,19 @@ function makeInvitationStream (options) {
 
 function makeReplicationStream (options) {
   assert.equal(typeof options, 'object')
-  assert.equal(typeof options.secretKey, 'string')
+  assert.equal(typeof options.replicationKey, 'string')
   assert.equal(typeof options.discoveryKey, 'string')
+  assert.equal(typeof options.writeSeed, 'string')
   assert(options.log)
-  var secretKey = options.secretKey
+  var replicationKey = options.replicationKey
   var discoveryKey = options.discoveryKey
+  var writeSeed = options.writeSeed
   var log = options.log.child({discoveryKey})
 
-  var returned = new protocol.Replication(secretKey)
+  var returned = new protocol.Replication({
+    encryptionKey: Buffer.from(replicationKey, 'hex'),
+    seed: Buffer.from(writeSeed, 'hex')
+  })
 
   returned.once('handshake', function () {
     log.info('received handshake')

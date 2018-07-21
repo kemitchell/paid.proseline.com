@@ -91,23 +91,24 @@ exports.putEnvelope = function (envelope, callback) {
   )
 }
 
-function projectSecretKeyKey (discoveryKey) {
+function projectKeysKey (discoveryKey) {
   assert.equal(typeof discoveryKey, 'string')
-  return `${projectKey(discoveryKey)}/secretKey`
+  return `${projectKey(discoveryKey)}/keys`
 }
 
-exports.getProjectSecretKey = function (discoveryKey, callback) {
+exports.getProjectKeys = function (discoveryKey, callback) {
   assert.equal(typeof discoveryKey, 'string')
   assert.equal(typeof callback, 'function')
-  getJSONObject(projectSecretKeyKey(discoveryKey), callback)
+  getJSONObject(projectKeysKey(discoveryKey), callback)
 }
 
-exports.putProjectSecretKey = function (discoveryKey, secretKey, callback) {
+exports.putProjectKeys = function (discoveryKey, replicationKey, writeSeed, callback) {
   assert.equal(typeof discoveryKey, 'string')
-  assert.equal(typeof secretKey, 'string')
+  assert.equal(typeof replicationKey, 'string')
+  assert.equal(typeof writeSeed, 'string')
   assert.equal(typeof callback, 'function')
   putJSONObject(
-    projectSecretKeyKey(discoveryKey), secretKey, callback
+    projectKeysKey(discoveryKey), {replicationKey, writeSeed}, callback
   )
 }
 
