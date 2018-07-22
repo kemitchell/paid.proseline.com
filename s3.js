@@ -57,7 +57,7 @@ exports.getLastIndex = function (discoveryKey, publicKey, callback) {
     }
     var contents = data.Contents
     if (contents.length === 0) return callback(null, undefined)
-    var key = contents[0].split(DELIMITER)[4]
+    var key = contents[0].Key.split(DELIMITER)[4]
     callback(null, indices.parse(key))
   })
 }
