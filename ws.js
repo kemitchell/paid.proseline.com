@@ -116,7 +116,7 @@ function makeInvitationStream (options) {
       log.info({discoveryKey}, 'putting')
       runParallel([
         function (done) {
-          s3.putProjecKeys(discoveryKey, replicationKey, writeSeed, done)
+          s3.putProjectKeys(discoveryKey, replicationKey, writeSeed, done)
         },
         function (done) {
           s3.putProjectUser(discoveryKey, email, done)
