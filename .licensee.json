@@ -46,6 +46,7 @@
     "querystring": "0.2.0",
     "rx-lite": "4.0.8",
     "rx-lite-aggregates": "4.0.8",
-    "streamsearch": "0.1.2"
+    "streamsearch": "0.1.2",
+    "json-protocol": "*"
   }
 }
