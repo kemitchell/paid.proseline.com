@@ -107,8 +107,9 @@ function makeInvitationStream (options) {
   returned.on('invitation', function (envelope) {
     var publicKey = envelope.publicKey
     var replicationKey = envelope.message.replicationKey
-    var writeSeed = envelope.message.writeSeed
     log.info({publicKey, replicationKey}, 'received invitation')
+    var writeSeed = envelope.message.writeSeed
+    if (!writeSeed) return log.info('no write seed')
     ensureActiveSubscription(publicKey, function (error, email, subscription) {
       if (error) return log.error(error)
       if (!subscription) return log.info('no active subscription')
