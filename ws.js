@@ -55,9 +55,7 @@ module.exports = function (serverLog) {
         var childLog = log.child({protocol: 'replication', discoveryKey})
         childLog.info({discoveryKey}, 'replicating')
         var replicationProtocol = makeReplicationStream({
-          encryptionKey: replicationKey,
-          seed: writeSeed,
-          log: childLog
+          replicationKey, discoveryKey, writeSeed, log: childLog
         })
         replicationProtocol.pipe(replicationTransport).pipe(replicationProtocol)
         replicationTransport.once('close', function () {
