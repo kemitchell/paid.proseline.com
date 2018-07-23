@@ -9,7 +9,7 @@
     "form-data": "^2.3.2",
     "json-parse-errback": "^2.0.1",
     "multiplex": "^6.7.0",
-    "pino": "^4.17.3",
+    "pino": "^4.17.5",
     "pino-http": "^3.2.2",
     "proseline-protocol": "^7.0.0",
     "pump": "^3.0.0",
