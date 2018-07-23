@@ -39,6 +39,7 @@ module.exports = function (serverLog) {
 
     // Replication Streams
     plex.on('stream', function (receiveStream, discoveryKey) {
+      var childLog = log.child({protocol: 'replication', discoveryKey})
       var replicationTransport = duplexify(
         plex.createStream(discoveryKey),
         receiveStream
@@ -46,23 +47,34 @@ module.exports = function (serverLog) {
       streams.set(discoveryKey, replicationTransport)
       s3.getProjectKeys(discoveryKey, function (error, keys) {
         if (error) {
-          log.error({discoveryKey}, error)
+          childLog.error(error)
           return destroy()
         }
         if (!keys) return destroy()
         var replicationKey = keys.replicationKey
         var writeSeed = keys.writeSeed
-        var childLog = log.child({protocol: 'replication', discoveryKey})
-        childLog.info({discoveryKey}, 'replicating')
+        childLog.info('replicating')
         var replicationProtocol = makeReplicationStream({
           replicationKey, discoveryKey, writeSeed, log: childLog
         })
+        replicationProtocol
+          .on('error', function (error) {
+            childLog.error(error)
+          })
+          .once('close', function () {
+            destroy()
+          })
+        replicationTransport
+          .on('error', function (error) {
+            childLog.error(error)
+          })
+          .once('close', function () {
+            destroy()
+          })
         replicationProtocol.pipe(replicationTransport).pipe(replicationProtocol)
-        replicationTransport.once('close', function () {
-          destroy()
-        })
         function destroy () {
-          log.info('destroying')
+          childLog.info('destroying')
+          replicationProtocol.destroy()
           replicationTransport.destroy()
           streams.delete(discoveryKey)
         }
