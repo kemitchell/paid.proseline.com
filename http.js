@@ -368,6 +368,7 @@ function finishCancel (request, response) {
       s3.getCapability(capability, done)
     },
     function getSubscription (capability, done) {
+      if (!capability) return done(new Error('invalid capability'))
       request.log.info(capability, 'capability')
       stripe.getActiveSubscription(
         capability.customerID, done
@@ -549,6 +550,9 @@ function getAdd (request, response) {
   }
   s3.getCapability(capability, function (error, data) {
     if (error) return serverError(error)
+    if (!data) {
+      return invalidRequest('invalid capability')
+    }
     if (data.type !== 'add') {
       return invalidRequest('invalid capability')
     }
