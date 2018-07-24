@@ -74,8 +74,8 @@ module.exports = function (serverLog) {
         replicationProtocol.pipe(replicationTransport).pipe(replicationProtocol)
         function destroy () {
           childLog.info('destroying')
-          replicationProtocol.destroy()
-          replicationTransport.destroy()
+          if (replicationProtocol) replicationProtocol.destroy()
+          if (replicationTransport) replicationTransport.destroy()
           streams.delete(discoveryKey)
         }
       })
