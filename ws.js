@@ -214,6 +214,9 @@ function makeReplicationStream (options) {
       publicKeys.forEach(function (publicKey) {
         s3.getLastIndex(discoveryKey, publicKey, function (error, index) {
           if (error) return log.error(error)
+          if (index === undefined) {
+            return log.error({discoveryKey, publicKey}, 'no envelopes')
+          }
           var offer = {publicKey, index}
           log.info(offer, 'last index')
           log.info(offer, 'sending offer')
@@ -253,7 +256,7 @@ function makeReplicationStream (options) {
     var offeredIndex = offer.index
     s3.getLastIndex(discoveryKey, publicKey, function (error, last) {
       if (error) return log.error(error)
-      if (!last) last = -1
+      if (last === undefined) last = -1
       log.info({publicKey, last}, 'last index')
       for (var index = last + 1; index <= offeredIndex; index++) {
         var pair = {publicKey, index}
