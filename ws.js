@@ -1,4 +1,5 @@
 var assert = require('assert')
+var async = require('async')
 var duplexify = require('duplexify')
 var multiplex = require('multiplex')
 var protocol = require('proseline-protocol')
@@ -230,23 +231,29 @@ function makeReplicationStream (options) {
   })
 
   // When our peer requests an envelope...
-  returned.on('request', function (request) {
+  var requestQueue = async.queue(function (request, done) {
     var publicKey = request.publicKey
     var index = request.index
-    var pair = {publicKey, index}
-    log.info(pair, 'received request')
     s3.getEnvelope(
       discoveryKey, publicKey, index,
       function (error, envelope) {
-        if (error) return log.error(error)
-        if (!envelope) return
-        log.info(pair, 'sending envelope')
+        if (error) return done(error)
+        if (!envelope) return done()
+        log.info(request, 'sending envelope')
         returned.envelope(envelope, function (error) {
-          if (error) return log.error(error)
-          log.info(pair, 'sent envelope')
+          if (error) return done(error)
+          log.info(request, 'sent envelope')
+          done()
         })
       }
     )
+  }, 1)
+
+  returned.on('request', function (request) {
+    log.info(request, 'received request')
+    requestQueue.push(request, function (error) {
+      if (error) log.error(error)
+    })
   })
 
   // When our peer offers an envelope...
