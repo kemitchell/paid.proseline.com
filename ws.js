@@ -254,6 +254,7 @@ function makeReplicationStream (options) {
     s3.getLastIndex(discoveryKey, publicKey, function (error, last) {
       if (error) return log.error(error)
       if (!last) last = -1
+      log.info({publicKey, last}, 'last index')
       for (var index = last + 1; index <= offeredIndex; index++) {
         var pair = {publicKey, index}
         log.info(pair, 'sending request')
