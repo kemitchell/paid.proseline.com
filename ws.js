@@ -275,6 +275,13 @@ function makeReplicationStream (options) {
       return log.error(pair, 'project mismatch')
     }
     log.info(pair, 'putting envelope')
+    s3.putProjectPublicKey(
+      discoveryKey, publicKey,
+      function (error) {
+        if (error) return log.error(error)
+        log.info({discoveryKey, publicKey}, 'put public key')
+      }
+    )
     s3.putEnvelope(envelope, function (error) {
       if (error) return log.error(error)
       log.info(pair, 'put envelope')

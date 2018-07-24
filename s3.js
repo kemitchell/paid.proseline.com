@@ -19,10 +19,22 @@ function projectKey (discoveryKey) {
   return `projects/${discoveryKey}`
 }
 
+function projectPublicKeyKey (discoveryKey, publicKey) {
+  return `${projectKey(discoveryKey)}/publicKeys/${publicKey}`
+}
+
+exports.putProjectPublicKey = function (discoveryKey, publicKey, callback) {
+  assert.equal(typeof discoveryKey, 'string')
+  assert.equal(typeof publicKey, 'string')
+  assert.equal(typeof callback, 'function')
+  var key = projectPublicKeyKey(discoveryKey, publicKey)
+  putJSONObject(key, {}, callback)
+}
+
 exports.listProjectPublicKeys = function (discoveryKey, callback) {
   assert.equal(typeof discoveryKey, 'string')
   assert.equal(typeof callback, 'function')
-  var prefix = `${projectKey(discoveryKey)}/publicKeys/`
+  var prefix = projectPublicKeyKey(discoveryKey, '')
   listAllKeys(prefix, function (error, keys) {
     if (error) return callback(error)
     callback(null, keys.map(function (key) {
@@ -36,7 +48,7 @@ function envelopeKey (discoveryKey, publicKey, index) {
   assert.equal(typeof publicKey, 'string')
   assert.equal(typeof index, 'number')
   return (
-    `${projectKey(discoveryKey)}` +
+    projectKey(discoveryKey) +
     `/envelopes/${publicKey}/${indices.stringify(index)}`
   )
 }
