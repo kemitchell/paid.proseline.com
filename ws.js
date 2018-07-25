@@ -1,10 +1,10 @@
 var assert = require('assert')
 var async = require('async')
+var data = require('./data')
 var duplexify = require('duplexify')
 var multiplex = require('multiplex')
 var protocol = require('proseline-protocol')
 var runParallel = require('run-parallel')
-var s3 = require('./s3')
 var sodium = require('sodium-native')
 var stringify = require('fast-json-stable-stringify')
 var stripe = require('./stripe')
@@ -46,7 +46,7 @@ module.exports = function (serverLog) {
         receiveStream
       )
       streams.set(discoveryKey, replicationTransport)
-      s3.getProjectKeys(discoveryKey, function (error, keys) {
+      data.getProjectKeys(discoveryKey, function (error, keys) {
         if (error) {
           childLog.error(error)
           return destroy()
@@ -91,11 +91,11 @@ function connect (a, b) {
 }
 
 function ensureActiveSubscription (publicKey, callback) {
-  s3.getPublicKey(publicKey, function (error, record) {
+  data.getPublicKey(publicKey, function (error, record) {
     if (error) return callback(error)
     if (!record) return callback()
     var email = record.email
-    s3.getUser(email, function (error, user) {
+    data.getUser(email, function (error, user) {
       if (error) return callback(error)
       if (!user) return callback()
       stripe.getActiveSubscription(
@@ -128,13 +128,13 @@ function makeInvitationStream (options) {
       log.info({discoveryKey}, 'putting')
       runParallel([
         function (done) {
-          s3.putProjectKeys(discoveryKey, replicationKey, writeSeed, done)
+          data.putProjectKeys(discoveryKey, replicationKey, writeSeed, done)
         },
         function (done) {
-          s3.putProjectUser(discoveryKey, email, done)
+          data.putProjectUser(discoveryKey, email, done)
         },
         function (done) {
-          s3.putUserProject(email, discoveryKey, done)
+          data.putUserProject(email, discoveryKey, done)
         }
       ], function (error) {
         if (error) return log.error(error)
@@ -148,10 +148,10 @@ function makeInvitationStream (options) {
     ensureActiveSubscription(publicKey, function (error, email, subscription) {
       if (error) return log.error(error)
       if (!subscription) return log.info('no active subscription')
-      s3.listUserProjects(email, function (error, discoveryKeys) {
+      data.listUserProjects(email, function (error, discoveryKeys) {
         if (error) return log.error(error)
         discoveryKeys.forEach(function (discoveryKey) {
-          s3.getProjectKeys(discoveryKey, function (error, keys) {
+          data.getProjectKeys(discoveryKey, function (error, keys) {
             if (error) return log.error(error)
             var invitation = {
               message: {replicationKey: keys.replicationKey, writeSeed: keys.writeSeed},
@@ -209,11 +209,11 @@ function makeReplicationStream (options) {
       if (error) return log.error(error)
       log.info('sent handshake')
     })
-    s3.listProjectPublicKeys(discoveryKey, function (error, publicKeys) {
+    data.listProjectPublicKeys(discoveryKey, function (error, publicKeys) {
       if (error) return log.error(error)
       log.info({publicKeys}, 'public keys')
       publicKeys.forEach(function (publicKey) {
-        s3.getLastIndex(discoveryKey, publicKey, function (error, index) {
+        data.getLastIndex(discoveryKey, publicKey, function (error, index) {
           if (error) return log.error(error)
           if (index === undefined) {
             return log.error({discoveryKey, publicKey}, 'no envelopes')
@@ -234,7 +234,7 @@ function makeReplicationStream (options) {
   var requestQueue = async.queue(function (request, done) {
     var publicKey = request.publicKey
     var index = request.index
-    s3.getEnvelope(
+    data.getEnvelope(
       discoveryKey, publicKey, index,
       function (error, envelope) {
         if (error) return done(error)
@@ -261,7 +261,7 @@ function makeReplicationStream (options) {
     log.info(offer, 'received offer')
     var publicKey = offer.publicKey
     var offeredIndex = offer.index
-    s3.getLastIndex(discoveryKey, publicKey, function (error, last) {
+    data.getLastIndex(discoveryKey, publicKey, function (error, last) {
       if (error) return log.error(error)
       if (last === undefined) last = -1
       log.info({publicKey, last}, 'last index')
@@ -287,7 +287,7 @@ function makeReplicationStream (options) {
     }
     log.info(pair, 'putting envelope')
     if (index === 0) {
-      s3.putProjectPublicKey(
+      data.putProjectPublicKey(
         discoveryKey, publicKey,
         function (error) {
           if (error) return log.error(error)
@@ -295,7 +295,7 @@ function makeReplicationStream (options) {
         }
       )
     }
-    s3.putEnvelope(envelope, function (error) {
+    data.putEnvelope(envelope, function (error) {
       if (error) return log.error(error)
       log.info(pair, 'put envelope')
     })

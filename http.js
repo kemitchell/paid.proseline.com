@@ -2,6 +2,7 @@ var AJV = require('ajv')
 var Busboy = require('busboy')
 var assert = require('assert')
 var concatLimit = require('./concat-limit')
+var data = require('./data')
 var fs = require('fs')
 var mailgun = require('./mailgun')
 var parse = require('json-parse-errback')
@@ -9,7 +10,6 @@ var pinoHTTP = require('pino-http')
 var pump = require('pump')
 var runSeries = require('run-series')
 var runWaterfall = require('run-waterfall')
-var s3 = require('./s3')
 var simpleConcat = require('simple-concat')
 var sodium = require('sodium-native')
 var stringify = require('fast-json-stable-stringify')
@@ -106,7 +106,7 @@ function postSubscribe (request, response) {
     var email = order.message.email
     var token = order.message.token
     var publicKey = order.publicKey
-    s3.getUser(email, function (error, user) {
+    data.getUser(email, function (error, user) {
       if (error) return serverError(error)
 
       // There is no Stripe customer for the e-mail address.
@@ -120,15 +120,15 @@ function postSubscribe (request, response) {
           function (customerID, done) {
             request.log.info({customerID}, 'created Stripe customer')
             newCustomerID = customerID
-            s3.putUser(email, {active: false, customerID}, done)
+            data.putUser(email, {active: false, customerID}, done)
           },
           function (done) {
-            request.log.info('put user to s3')
-            s3.putPublicKey(publicKey, {email, first: true}, done)
+            request.log.info('put user')
+            data.putPublicKey(publicKey, {email, first: true}, done)
           }
         ], function (error) {
           if (error) return serverError(error)
-          request.log.info('put public key to s3')
+          request.log.info('put public key')
           sendEMail(newCustomerID)
         })
       }
@@ -153,10 +153,10 @@ function postSubscribe (request, response) {
         runSeries([
           function (done) {
             var data = {type: 'subscribe'}
-            s3.putCapability(email, customerID, capability, data, done)
+            data.putCapability(email, customerID, capability, data, done)
           },
           function (done) {
-            request.log.info('put capability to s3')
+            request.log.info('put capability')
             mailgun.subscribe(request.log, email, capability, done)
           }
         ], function (error) {
@@ -219,7 +219,7 @@ function getSubscribe (request, response) {
     response.statusCode = 400
     return response.end()
   }
-  s3.getCapability(capability, function (error, data) {
+  data.getCapability(capability, function (error, data) {
     if (error) return serverError(error)
     if (!data) {
       response.statusCode = 400
@@ -236,7 +236,7 @@ function getSubscribe (request, response) {
     request.log.info(data, 'capability')
     runSeries([
       logSuccess(function (done) {
-        s3.deleteCapability(capability, done)
+        data.deleteCapability(capability, done)
       }, 'deleted capability'),
       logSuccess(function (done) {
         stripe.subscribe(customerID, done)
@@ -276,7 +276,7 @@ function postCancel (request, response) {
   parseBody(function (error, email) {
     if (error) return serverError(error)
     request.log.info({email}, 'email')
-    s3.getUser(email, function (error, user) {
+    data.getUser(email, function (error, user) {
       if (error) return serverError(error)
       if (!user) return showSuccessPage()
       var capability = randomCapability()
@@ -365,7 +365,7 @@ function finishCancel (request, response) {
   }
   runWaterfall([
     function getCapability (done) {
-      s3.getCapability(capability, done)
+      data.getCapability(capability, done)
     },
     function getSubscription (capability, done) {
       if (!capability) return done(new Error('invalid capability'))
@@ -461,7 +461,7 @@ function webhook (request, response) {
         response.statusCode = 400
         response.end('invalid JSON')
       }
-      s3.putWebhook(parsed, function (error, objectID) {
+      data.putWebhook(parsed, function (error, objectID) {
         if (error) {
           response.statusCode = 500
           response.end()
@@ -505,7 +505,7 @@ function postAdd (request, response) {
     var email = add.message.email
     var name = add.message.name
     var publicKey = add.publicKey
-    s3.getUser(email, function (error, user) {
+    data.getUser(email, function (error, user) {
       if (error) return serverError(error)
       if (!user) return invalidRequest('no user with that e-mail')
       var customerID = user.customerID
@@ -518,7 +518,7 @@ function postAdd (request, response) {
           runSeries([
             function (done) {
               var data = {name, publicKey, type: 'add'}
-              s3.putCapability(email, customerID, capability, data, done)
+              data.putCapability(email, customerID, capability, data, done)
             },
             function (done) {
               mailgun.add(request.log, email, name, capability, done)
@@ -548,7 +548,7 @@ function getAdd (request, response) {
   if (!capability || !validCapability(capability)) {
     return invalidRequest('invalid capability')
   }
-  s3.getCapability(capability, function (error, data) {
+  data.getCapability(capability, function (error, data) {
     if (error) return serverError(error)
     if (!data) {
       return invalidRequest('invalid capability')
@@ -562,10 +562,10 @@ function getAdd (request, response) {
     request.log.info(data, 'capability')
     runSeries([
       logSuccess(function (done) {
-        s3.deleteCapability(capability, done)
+        data.deleteCapability(capability, done)
       }, 'deleted capability'),
       logSuccess(function (done) {
-        s3.putPublicKey(publicKey, {email, name}, done)
+        data.putPublicKey(publicKey, {email, name}, done)
       }, 'added key')
     ], function (error) {
       if (error) return serverError(error)
