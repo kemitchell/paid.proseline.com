@@ -27,11 +27,13 @@
   "devDependencies": {
     "depcheck": "^0.6.9",
     "licensee": "^4.5.0",
-    "standard": "^11.0.1"
+    "standard": "^11.0.1",
+    "tape": "^4.9.1"
   },
   "scripts": {
     "deps": "depcheck --ignores standard,licensee",
     "lint": "standard",
-    "licenses": "licensee --errors-only"
+    "licenses": "licensee --errors-only",
+    "test": "tape test/*.test.js"
   }
 }
