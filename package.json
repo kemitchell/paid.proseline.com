@@ -26,14 +26,17 @@
   },
   "devDependencies": {
     "depcheck": "^0.6.9",
+    "istanbul": "^0.4.5",
     "licensee": "^4.5.0",
     "standard": "^11.0.1",
     "tape": "^4.9.1"
   },
   "scripts": {
+    "coverage": "NODE_ENV=test istanbul cover -- tape test/*.test.js",
+    "postcoverage": "istanbul check-coverage coverage/coverage.json",
     "deps": "depcheck --ignores standard,licensee",
     "lint": "standard",
     "licenses": "licensee --errors-only",
-    "test": "tape test/*.test.js"
+    "test": "NODE_ENV=test tape test/*.test.js"
   }
 }
