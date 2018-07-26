@@ -1,11 +1,9 @@
-var FormData = require('form-data')
-var https = require('https')
-var simpleConcat = require('simple-concat')
+var mailgun = require('./mailgun')
 
 exports.subscribe = function (
   requestLog, email, capability, callback
 ) {
-  send(requestLog, {
+  mailgun(requestLog, {
     to: email,
     subject: 'Confirm Your Proseline Subscription',
     paragraphs: [
@@ -18,7 +16,7 @@ exports.subscribe = function (
 exports.add = function (
   requestLog, email, name, capability, callback
 ) {
-  send(requestLog, {
+  mailgun(requestLog, {
     to: email,
     subject: 'Add a New Device to Your Proseline Subscription',
     paragraphs: [
@@ -32,7 +30,7 @@ exports.add = function (
 exports.cancel = function (
   requestLog, email, capability, callback
 ) {
-  send(requestLog, {
+  mailgun(requestLog, {
     to: email,
     subject: 'Cancel Your Proseline Subscription',
     paragraphs: [
@@ -40,36 +38,4 @@ exports.cancel = function (
       `https://${process.env.HOSTNAME}/cancel?capability=${capability}`
     ]
   }, callback)
-}
-
-function send (requestLog, options, callback) {
-  var log = requestLog.child({subsystem: 'email'})
-  var form = new FormData()
-  form.append('from', process.env.MAILGUN_FROM)
-  form.append('to', options.to)
-  form.append('subject', options.subject)
-  form.append('o:dkim', 'yes')
-  form.append('o:require-tls', 'yes')
-  form.append('text', options.paragraphs.join('\n\n'))
-  var request = https.request({
-    method: 'POST',
-    host: 'api.mailgun.net',
-    path: `/v3/${process.env.MAILGUN_DOMAIN}/messages`,
-    auth: `api:${process.env.MAILGUN_API_KEY}`,
-    headers: form.getHeaders()
-  })
-  request.once('response', function (response) {
-    var status = response.statusCode
-    if (status === 200) {
-      log.info(options, 'sent')
-      return callback()
-    }
-    simpleConcat(response, function (error, body) {
-      if (error) return callback(error)
-      var errorMessage = new Error(body.toString())
-      errorMessage.statusCode = response.statusCode
-      callback(errorMessage)
-    })
-  })
-  form.pipe(request)
 }
