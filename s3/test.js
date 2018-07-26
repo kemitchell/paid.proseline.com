@@ -1,4 +1,4 @@
-var DELIMITER = exports.DELIMITER = '/'
+exports.DELIMITER = '/'
 
 var data
 
