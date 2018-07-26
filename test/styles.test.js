@@ -1,4 +1,3 @@
-var concat = require('simple-concat')
 var http = require('http')
 var server = require('./server')
 var tape = require('tape')

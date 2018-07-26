@@ -13,7 +13,6 @@ tape.test('GET /publickey', function (test) {
         )
         concat(response, function (error, buffer) {
           test.ifError(error, 'no error')
-          var body = buffer.toString()
           test.assert(
             /^[a-f0-9]{64}$/.test(buffer.toString()),
             'hex public key'
