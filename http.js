@@ -219,21 +219,21 @@ function getSubscribe (request, response) {
     response.statusCode = 400
     return response.end()
   }
-  data.getCapability(capability, function (error, data) {
+  data.getCapability(capability, function (error, object) {
     if (error) return serverError(error)
-    if (!data) {
+    if (!object) {
       response.statusCode = 400
       return response.end(messagePage(
         'Invalid Link',
         ['The link you followed is invalid or expired.']
       ))
     }
-    if (data.type !== 'subscribe') {
+    if (object.type !== 'subscribe') {
       response.statusCode = 400
       return response.end()
     }
-    var customerID = data.customerID
-    request.log.info(data, 'capability')
+    var customerID = object.customerID
+    request.log.info(object, 'capability')
     runSeries([
       logSuccess(function (done) {
         data.deleteCapability(capability, done)
