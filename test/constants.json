@@ -1,0 +1,5 @@
+{
+  "VALID_STRIPE_SOURCE": "valid",
+  "VALID_STRIPE_SIGNATURE": "valid",
+  "HOSTNAME": "test.proseline.com"
+}

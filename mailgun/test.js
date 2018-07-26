@@ -1,6 +1,6 @@
 var EventEmitter = require('events').EventEmitter
 
-var events = module.exports.events = new EventEmitter()
+var events = new EventEmitter()
 
 module.exports = function (requestLog, options, callback) {
   setImmediate(function () {
@@ -8,3 +8,5 @@ module.exports = function (requestLog, options, callback) {
     events.emit('sent', options)
   })
 }
+
+module.exports.events = events

@@ -152,8 +152,8 @@ function postSubscribe (request, response) {
         var capability = randomCapability()
         runSeries([
           function (done) {
-            var data = {type: 'subscribe'}
-            data.putCapability(email, customerID, capability, data, done)
+            var object = {type: 'subscribe'}
+            data.putCapability(email, customerID, capability, object, done)
           },
           function (done) {
             request.log.info('put capability')
@@ -517,8 +517,8 @@ function postAdd (request, response) {
           var capability = randomCapability()
           runSeries([
             function (done) {
-              var data = {name, publicKey, type: 'add'}
-              data.putCapability(email, customerID, capability, data, done)
+              var object = {name, publicKey, type: 'add'}
+              data.putCapability(email, customerID, capability, object, done)
             },
             function (done) {
               send.add(request.log, email, name, capability, done)

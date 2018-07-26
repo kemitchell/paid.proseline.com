@@ -1,3 +1,5 @@
+var constants = require('../test/constants')
+
 var customers
 
 exports.clear = function () {
@@ -6,11 +8,9 @@ exports.clear = function () {
 
 exports.clear()
 
-exports.VALID_TEST_SOURCE = 'valid'
-
 exports.createCustomer = function (email, source, callback) {
   setImmediate(function () {
-    if (source !== exports.VALID_TEST_SOURCE) {
+    if (source !== constants.VALID_STRIPE_SOURCE) {
       return callback(new Error('invalid source'))
     }
     var customerID = nextCustomerID()
@@ -74,8 +74,6 @@ exports.getActiveSubscription = function (customerID, callback) {
   })
 }
 
-exports.VALID_TEST_SIGNATURE = 'valid'
-
 exports.validSignature = function (request, body) {
-  return body.toString() === exports.VALID_TEST_SIGNATURE
+  return body.toString() === constants.VALID_STRIPE_SIGNATURE
 }
