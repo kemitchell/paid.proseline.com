@@ -1,0 +1,74 @@
+var customers
+
+exports.clear = function () {
+  customers = new Map()
+}
+
+exports.clear()
+
+exports.createCustomer = function (email, source, callback) {
+  setImmediate(function () {
+    var customerID = nextCustomerID()
+    customers.set(customerID, {email})
+    callback(null, customerID)
+  })
+}
+
+var customerCounter = 0
+
+function nextCustomerID () {
+  var suffix = String(++customerCounter).padLeft(14, '0')
+  return 'cus_' + suffix
+}
+
+exports.getCustomer = function (customerID, callback) {
+  setImmediate(function () {
+    callback(null, customers.get(customerID))
+  })
+}
+
+exports.subscribe = function (customerID, callback) {
+  setImmediate(function () {
+    if (!customers.has(customerID)) {
+      return callback(new Error('no such customer'))
+    }
+    var customer = customers.get(customerID)
+    var subscriptionID = nextSubscriptionID()
+    customer.subscriptionID = subscriptionID
+    customers.put(customerID, customer)
+    callback(null, subscriptionID)
+  })
+}
+
+exports.unsubscribe = function (customerID, callback) {
+  setImmediate(function () {
+    if (!customers.has(customerID)) {
+      return callback(new Error('no such customer'))
+    }
+    var customer = customers.get(customerID)
+    delete customer.subscriptionID
+    customers.put(customerID, customer)
+    callback()
+  })
+}
+
+var subscriptionCounter = 0
+
+function nextSubscriptionID () {
+  var suffix = String(++subscriptionCounter).padLeft(14, '0')
+  return 'sub_' + suffix
+}
+
+exports.getActiveSubscription = function (customerID, callback) {
+  setImmediate(function () {
+    if (!customers.has(customerID)) {
+      return callback(new Error('no such customer'))
+    }
+    var customer = customers.get(customerID)
+    callback(null, customer.subscriptionID || null)
+  })
+}
+
+exports.validSignature = function (request, body) {
+  return body.toString() === 'VALID_TEST_SIGNATURE'
+}
