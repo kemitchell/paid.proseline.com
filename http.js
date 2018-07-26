@@ -3,8 +3,8 @@ var Busboy = require('busboy')
 var assert = require('assert')
 var concatLimit = require('./concat-limit')
 var data = require('./data')
+var email = require('./email')
 var fs = require('fs')
-var mailgun = require('./mailgun')
 var parse = require('json-parse-errback')
 var pinoHTTP = require('pino-http')
 var pump = require('pump')
@@ -157,7 +157,7 @@ function postSubscribe (request, response) {
           },
           function (done) {
             request.log.info('put capability')
-            mailgun.subscribe(request.log, email, capability, done)
+            email.subscribe(request.log, email, capability, done)
           }
         ], function (error) {
           if (error) return serverError(error)
@@ -280,7 +280,7 @@ function postCancel (request, response) {
       if (error) return serverError(error)
       if (!user) return showSuccessPage()
       var capability = randomCapability()
-      mailgun.cancel(
+      email.cancel(
         request.log, email, capability,
         function (error) {
           if (error) return serverError(error)
@@ -521,7 +521,7 @@ function postAdd (request, response) {
               data.putCapability(email, customerID, capability, data, done)
             },
             function (done) {
-              mailgun.add(request.log, email, name, capability, done)
+              email.add(request.log, email, name, capability, done)
             }
           ], function (error) {
             if (error) return serverError(error)
