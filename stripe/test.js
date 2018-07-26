@@ -6,8 +6,13 @@ exports.clear = function () {
 
 exports.clear()
 
+exports.VALID_TEST_SOURCE = 'valid'
+
 exports.createCustomer = function (email, source, callback) {
   setImmediate(function () {
+    if (source !== exports.VALID_TEST_SOURCE) {
+      return callback(new Error('invalid source'))
+    }
     var customerID = nextCustomerID()
     customers.set(customerID, {email})
     callback(null, customerID)
@@ -17,7 +22,7 @@ exports.createCustomer = function (email, source, callback) {
 var customerCounter = 0
 
 function nextCustomerID () {
-  var suffix = String(++customerCounter).padLeft(14, '0')
+  var suffix = String(++customerCounter).padStart(14, '0')
   return 'cus_' + suffix
 }
 
@@ -35,7 +40,7 @@ exports.subscribe = function (customerID, callback) {
     var customer = customers.get(customerID)
     var subscriptionID = nextSubscriptionID()
     customer.subscriptionID = subscriptionID
-    customers.put(customerID, customer)
+    customers.set(customerID, customer)
     callback(null, subscriptionID)
   })
 }
@@ -47,7 +52,7 @@ exports.unsubscribe = function (customerID, callback) {
     }
     var customer = customers.get(customerID)
     delete customer.subscriptionID
-    customers.put(customerID, customer)
+    customers.set(customerID, customer)
     callback()
   })
 }
@@ -55,7 +60,7 @@ exports.unsubscribe = function (customerID, callback) {
 var subscriptionCounter = 0
 
 function nextSubscriptionID () {
-  var suffix = String(++subscriptionCounter).padLeft(14, '0')
+  var suffix = String(++subscriptionCounter).padStart(14, '0')
   return 'sub_' + suffix
 }
 
@@ -69,6 +74,8 @@ exports.getActiveSubscription = function (customerID, callback) {
   })
 }
 
+exports.VALID_TEST_SIGNATURE = 'valid'
+
 exports.validSignature = function (request, body) {
-  return body.toString() === 'VALID_TEST_SIGNATURE'
+  return body.toString() === exports.VALID_TEST_SIGNATURE
 }
