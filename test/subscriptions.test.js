@@ -118,6 +118,21 @@ tape('GET /subscribe', function (test) {
   })
 })
 
+tape('PUT /subscribe', function (test) {
+  server(function (port, done) {
+    http.request({path: '/subscribe', method: 'PUT', port})
+      .once('response', function (response) {
+        test.equal(
+          response.statusCode, 405,
+          'responds 405'
+        )
+        test.end()
+        done()
+      })
+      .end()
+  })
+})
+
 function sign (data, secretKey) {
   var signature = Buffer.alloc(sodium.crypto_sign_BYTES)
   sodium.crypto_sign_detached(signature, Buffer.from(stringify(data)), secretKey)

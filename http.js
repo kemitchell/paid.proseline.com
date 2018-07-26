@@ -34,12 +34,12 @@ module.exports = function (serverLog) {
     if (pathname === '/subscribe') {
       if (method === 'POST') return postSubscribe(request, response)
       if (method === 'GET') return getSubscribe(request, response)
-      return respond405()
+      return respond405(request, response)
     }
     if (pathname === '/add') {
       if (method === 'POST') return postAdd(request, response)
       if (method === 'GET') return getAdd(request, response)
-      return respond405()
+      return respond405(request, response)
     }
     if (pathname === '/cancel') {
       if (method === 'POST') return postCancel(request, response)
@@ -48,7 +48,7 @@ module.exports = function (serverLog) {
         if (capability) return finishCancel(request, response)
         return startCancel(request, response)
       }
-      return respond405()
+      return respond405(request, response)
     }
     if (pathname === '/publickey') {
       return response.end(process.env.PUBLIC_KEY)
