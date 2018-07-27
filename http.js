@@ -109,6 +109,7 @@ function postSubscribe (request, response) {
     var token = order.message.token
     var publicKey = order.publicKey
     data.getUser(email, function (error, user) {
+      /* istanbul ignore if */
       if (error) return serverError(error)
 
       // There is no Stripe customer for the e-mail address.
@@ -222,6 +223,7 @@ function getSubscribe (request, response) {
     return response.end()
   }
   data.getCapability(capability, function (error, object) {
+    /* istanbul ignore if */
     if (error) return serverError(error)
     if (!object) {
       response.statusCode = 400
@@ -279,6 +281,7 @@ function postCancel (request, response) {
     if (error) return serverError(error)
     request.log.info({email}, 'email')
     data.getUser(email, function (error, user) {
+      /* istanbul ignore if */
       if (error) return serverError(error)
       if (!user) {
         request.log.info('no user')
@@ -549,6 +552,7 @@ function postAdd (request, response) {
     var name = add.message.name
     var publicKey = add.publicKey
     data.getUser(email, function (error, user) {
+      /* istanbul ignore if */
       if (error) return serverError(error)
       if (!user) return invalidRequest('no user with that e-mail')
       var customerID = user.customerID
@@ -592,6 +596,7 @@ function getAdd (request, response) {
     return invalidRequest('invalid capability')
   }
   data.getCapability(capability, function (error, object) {
+    /* istanbul ignore if */
     if (error) return serverError(error)
     if (!object) {
       return invalidRequest('invalid capability')
