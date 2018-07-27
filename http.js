@@ -87,6 +87,7 @@ function postSubscribe (request, response) {
     parse
   ], function (error, order) {
     if (error) {
+      /* istanbul ignore else */
       if (error.limit) {
         // TODO: Double check stream calls for 413.
         response.statusCode = 413
