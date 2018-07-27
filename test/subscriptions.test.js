@@ -273,3 +273,18 @@ tape('Resubscribe', function (test) {
     })
   })
 })
+
+tape('GET /subscribe without capability', function (test) {
+  server(function (port, done) {
+    http.request({path: '/subscribe', port})
+      .once('response', function (response) {
+        test.equal(
+          response.statusCode, 400,
+          'responds 400'
+        )
+        test.end()
+        done()
+      })
+      .end()
+  })
+})
