@@ -221,6 +221,41 @@ tape('PUT /cancel', function (test) {
   })
 })
 
+tape('POST /subscribe after subscribing', function (test) {
+  server(function (port, done) {
+    var email = 'test@example.com'
+    subscribe(email, port, null, function (subscribeMessage) {
+      confirmSubscribe(subscribeMessage, port, null, function () {
+        var keyPair = makeKeyPair()
+        var message = {
+          token: constants.VALID_STRIPE_SOURCE,
+          date: new Date().toISOString(),
+          email
+        }
+        var order = {
+          publicKey: keyPair.publicKey.toString('hex'),
+          signature: sign(message, keyPair.secretKey).toString('hex'),
+          message
+        }
+        http.request({
+          method: 'POST',
+          path: '/subscribe',
+          port
+        })
+          .once('response', function (response) {
+            test.equal(
+              response.statusCode, 400,
+              'responds 400'
+            )
+            test.end()
+            done()
+          })
+          .end(JSON.stringify(order))
+      })
+    })
+  })
+})
+
 tape('Resubscribe', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
