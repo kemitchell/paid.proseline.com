@@ -559,6 +559,7 @@ function postAdd (request, response) {
       stripe.getActiveSubscription(
         customerID,
         function (error, subscription) {
+          /* istanbul ignore if */
           if (error) return serverError(error)
           if (!subscription) return invalidRequest('no active subscription')
           var capability = randomCapability()
