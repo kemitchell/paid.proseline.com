@@ -1,6 +1,7 @@
 var add = require('./add')
 var confirmAdd = require('./confirm-add')
 var confirmSubscribe = require('./confirm-subscribe')
+var http = require('http')
 var server = require('./server')
 var subscribe = require('./subscribe')
 var tape = require('tape')
@@ -32,5 +33,20 @@ tape('GET /add', function (test) {
         })
       })
     })
+  })
+})
+
+tape('PUT /add', function (test) {
+  server(function (port, done) {
+    http.request({path: '/add', method: 'PUT', port})
+      .once('response', function (response) {
+        test.equal(
+          response.statusCode, 405,
+          'responds 405'
+        )
+        test.end()
+        done()
+      })
+      .end()
   })
 })
