@@ -4,7 +4,9 @@ var confirmCancel = require('./confirm-cancel')
 var confirmSubscribe = require('./confirm-subscribe')
 var constants = require('./constants')
 var http = require('http')
+var makeKeyPair = require('./make-key-pair')
 var server = require('./server')
+var sign = require('./sign')
 var subscribe = require('./subscribe')
 var tape = require('tape')
 
@@ -68,7 +70,39 @@ tape('POST /subscribe with invalid signature', function (test) {
     }
     var order = {
       publicKey: 'a'.repeat(64),
-      signature: 'b'.repeat(64),
+      signature: 'b'.repeat(128),
+      message
+    }
+    http.request({
+      method: 'POST',
+      path: '/subscribe',
+      port
+    })
+      .once('response', function (response) {
+        test.equal(
+          response.statusCode, 400,
+          'responds 400'
+        )
+        test.end()
+        done()
+      })
+      .end(JSON.stringify(order))
+  })
+})
+
+tape('POST /subscribe with expired order', function (test) {
+  server(function (port, done) {
+    var keyPair = makeKeyPair()
+    var date = new Date()
+    date.setDate(date.getDate() - 30)
+    var message = {
+      token: constants.VALID_STRIPE_SOURCE,
+      date: date.toISOString(),
+      email: 'test@example.com'
+    }
+    var order = {
+      publicKey: keyPair.publicKey.toString('hex'),
+      signature: sign(message, keyPair.secretKey).toString('hex'),
       message
     }
     http.request({
