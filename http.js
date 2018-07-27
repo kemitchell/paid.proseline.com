@@ -548,18 +548,18 @@ function getAdd (request, response) {
   if (!capability || !validCapability(capability)) {
     return invalidRequest('invalid capability')
   }
-  data.getCapability(capability, function (error, data) {
+  data.getCapability(capability, function (error, object) {
     if (error) return serverError(error)
-    if (!data) {
+    if (!object) {
       return invalidRequest('invalid capability')
     }
-    if (data.type !== 'add') {
+    if (object.type !== 'add') {
       return invalidRequest('invalid capability')
     }
-    var email = data.email
-    var name = data.name
-    var publicKey = data.publicKey
-    request.log.info(data, 'capability')
+    var email = object.email
+    var name = object.name
+    var publicKey = object.publicKey
+    request.log.info(object, 'capability')
     runSeries([
       logSuccess(function (done) {
         data.deleteCapability(capability, done)
