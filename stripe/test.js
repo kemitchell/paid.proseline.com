@@ -47,7 +47,7 @@ exports.subscribe = function (customerID, callback) {
 
 exports.unsubscribe = function (subscriptionID, callback) {
   setImmediate(function () {
-    var customer = Array.from(customers).find(function (customer) {
+    var customer = Array.from(customers.values()).find(function (customer) {
       return customer.subscriptionID === subscriptionID
     })
     if (!customer) return callback(new Error('no such subscription'))
@@ -70,7 +70,7 @@ exports.getActiveSubscription = function (customerID, callback) {
       return callback(new Error('no such customer'))
     }
     var customer = customers.get(customerID)
-    callback(null, customer.subscriptionID || null)
+    callback(null, customer.subscriptionID ? {id: customer.subscriptionID} : null)
   })
 }
 

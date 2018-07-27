@@ -220,3 +220,21 @@ tape('PUT /cancel', function (test) {
       .end()
   })
 })
+
+tape('Resubscribe', function (test) {
+  server(function (port, done) {
+    var email = 'test@example.com'
+    subscribe(email, port, null, function (subscribeMessage) {
+      confirmSubscribe(subscribeMessage, port, null, function () {
+        cancel(email, port, null, function (cancelMessage) {
+          confirmCancel(cancelMessage, port, null, function () {
+            subscribe(email, port, test, function (subscribeMessage) {
+              test.end()
+              done()
+            })
+          })
+        })
+      })
+    })
+  })
+})
