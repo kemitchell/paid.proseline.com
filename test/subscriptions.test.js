@@ -1,10 +1,8 @@
-var concat = require('simple-concat')
-var constants = require('./constants')
+var confirmSubscribe = require('./confirm-subscribe')
 var http = require('http')
 var server = require('./server')
 var subscribe = require('./subscribe')
 var tape = require('tape')
-var url = require('url')
 
 tape('POST /subscribe', function (test) {
   server(function (port, done) {
@@ -15,34 +13,13 @@ tape('POST /subscribe', function (test) {
   })
 })
 
-tape.only('GET /subscribe', function (test) {
+tape('GET /subscribe', function (test) {
   server(function (port, done) {
     subscribe('test@example.com', port, null, function (email) {
-      var link = email.paragraphs.find(function (paragraph) {
-        return paragraph.includes(
-          'https://' + constants.HOSTNAME + '/subscribe'
-        )
+      confirmSubscribe(email, port, test, function () {
+        test.end()
+        done()
       })
-      var parsed = url.parse(link)
-      http.request({path: parsed.path, port})
-        .once('response', function (response) {
-          test.equal(
-            response.statusCode, 200,
-            'responds 200'
-          )
-          concat(response, function (error, buffer) {
-            var body = buffer.toString()
-            test.ifError(error, 'no error')
-            var name = 'Subscribed'
-            test.assert(
-              body.includes(name),
-              'body includes ' + JSON.stringify(name)
-            )
-            test.end()
-            done()
-          })
-        })
-        .end()
     })
   })
 })
