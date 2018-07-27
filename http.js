@@ -450,6 +450,7 @@ function styles (request, response) {
 
 function webhook (request, response) {
   simpleConcat(request, function (error, buffer) {
+    /* istanbul ignore if */
     if (error) {
       response.statusCode = 400
       return response.end()
@@ -469,6 +470,7 @@ function webhook (request, response) {
         return response.end('not an object')
       }
       data.putWebhook(parsed, function (error, objectID) {
+        /* istanbul ignore if */
         if (error) {
           response.statusCode = 500
           return response.end()
