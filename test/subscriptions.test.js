@@ -315,3 +315,43 @@ tape('GET /subscribe with invalid capability', function (test) {
       .end()
   })
 })
+
+tape('GET /subscribe with cancel capability', function (test) {
+  server(function (port, done) {
+    var email = 'test@example.com'
+    subscribe(email, port, null, function (subscribeMessage) {
+      confirmSubscribe(subscribeMessage, port, null, function () {
+        cancel(email, port, null, function (cancelMessage) {
+          var link = cancelMessage.paragraphs.find(function (paragraph) {
+            return paragraph.includes(
+              'https://' + constants.HOSTNAME + '/cancel'
+            )
+          })
+          var capability = /capability=(.*)$/.exec(link)[1]
+          http.request({
+            path: '/subscribe?capability=' + capability,
+            port
+          })
+            .once('response', function (response) {
+              test.equal(
+                response.statusCode, 400,
+                'responds 400'
+              )
+              concat(response, function (error, buffer) {
+                var body = buffer.toString()
+                test.ifError(error, 'no error')
+                var name = 'Invalid'
+                test.assert(
+                  body.includes(name),
+                  'body includes ' + JSON.stringify(name)
+                )
+                test.end()
+                done()
+              })
+            })
+            .end()
+        })
+      })
+    })
+  })
+})

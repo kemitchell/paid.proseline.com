@@ -228,16 +228,12 @@ function getSubscribe (request, response) {
   data.getCapability(capability, function (error, object) {
     /* istanbul ignore if */
     if (error) return serverError(error)
-    if (!object) {
+    if (!object || object.type !== 'subscribe') {
       response.statusCode = 400
       return response.end(messagePage(
         'Invalid Link',
         ['The link you followed is invalid or expired.']
       ))
-    }
-    if (object.type !== 'subscribe') {
-      response.statusCode = 400
-      return response.end()
     }
     var customerID = object.customerID
     request.log.info(object, 'capability')
