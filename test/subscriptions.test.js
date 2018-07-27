@@ -2,6 +2,7 @@ var cancel = require('./cancel')
 var concat = require('simple-concat')
 var confirmCancel = require('./confirm-cancel')
 var confirmSubscribe = require('./confirm-subscribe')
+var constants = require('./constants')
 var http = require('http')
 var server = require('./server')
 var subscribe = require('./subscribe')
@@ -55,6 +56,35 @@ tape('POST /subscribe with invalid body', function (test) {
         done()
       })
       .end(JSON.stringify({}))
+  })
+})
+
+tape('POST /subscribe with invalid signature', function (test) {
+  server(function (port, done) {
+    var message = {
+      token: constants.VALID_STRIPE_SOURCE,
+      date: new Date().toISOString(),
+      email: 'test@example.com'
+    }
+    var order = {
+      publicKey: 'a'.repeat(64),
+      signature: 'b'.repeat(64),
+      message
+    }
+    http.request({
+      method: 'POST',
+      path: '/subscribe',
+      port
+    })
+      .once('response', function (response) {
+        test.equal(
+          response.statusCode, 400,
+          'responds 400'
+        )
+        test.end()
+        done()
+      })
+      .end(JSON.stringify(order))
   })
 })
 
