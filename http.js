@@ -172,6 +172,7 @@ function postSubscribe (request, response) {
   })
 
   function invalidRequest (response, message) {
+    response.statusCode = 400
     response.end(JSON.stringify({error: message}))
   }
 

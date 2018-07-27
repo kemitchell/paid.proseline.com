@@ -39,6 +39,25 @@ tape('POST /subscribe with huge body', function (test) {
   })
 })
 
+tape('POST /subscribe with invalid body', function (test) {
+  server(function (port, done) {
+    http.request({
+      method: 'POST',
+      path: '/subscribe',
+      port
+    })
+      .once('response', function (response) {
+        test.equal(
+          response.statusCode, 400,
+          'responds 400'
+        )
+        test.end()
+        done()
+      })
+      .end(JSON.stringify({}))
+  })
+})
+
 tape('GET /subscribe', function (test) {
   server(function (port, done) {
     subscribe('test@example.com', port, null, function (email) {
