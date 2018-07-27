@@ -4,6 +4,7 @@ var http = require('http')
 var httpHandler = require('../http')
 var makeKeyPair = require('./make-key-pair')
 var pino = require('pino')
+var s3 = require('../s3/test')
 var websocketHandler = require('../ws')
 var websocketStream = require('websocket-stream')
 
@@ -20,6 +21,7 @@ module.exports = function (test) {
   }, websocketHandler(log.child({subsytem: 'ws'})))
   server.listen(0, function () {
     test(this.address().port, function () {
+      s3.clear()
       server.close()
     })
   })
