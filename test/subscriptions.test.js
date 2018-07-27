@@ -1,3 +1,4 @@
+var cancel = require('./cancel')
 var confirmSubscribe = require('./confirm-subscribe')
 var http = require('http')
 var server = require('./server')
@@ -36,5 +37,19 @@ tape('PUT /subscribe', function (test) {
         done()
       })
       .end()
+  })
+})
+
+tape('POST /cancel', function (test) {
+  server(function (port, done) {
+    var email = 'test@example.com'
+    subscribe(email, port, null, function (subscribeMessage) {
+      confirmSubscribe(subscribeMessage, port, null, function () {
+        cancel(email, port, test, function () {
+          test.end()
+          done()
+        })
+      })
+    })
   })
 })

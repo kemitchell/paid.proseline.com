@@ -6,7 +6,6 @@ var data = require('./data')
 var fs = require('fs')
 var parse = require('json-parse-errback')
 var pinoHTTP = require('pino-http')
-var pump = require('pump')
 var runSeries = require('run-series')
 var runWaterfall = require('run-waterfall')
 var send = require('./send')
@@ -281,8 +280,13 @@ function postCancel (request, response) {
     request.log.info({email}, 'email')
     data.getUser(email, function (error, user) {
       if (error) return serverError(error)
-      if (!user) return showSuccessPage()
+      if (!user) {
+        request.log.info('no user')
+        return showSuccessPage()
+      }
+      request.log.info(user, 'user')
       var capability = randomCapability()
+      request.log.info({capability}, 'capability')
       send.cancel(
         request.log, email, capability,
         function (error) {
@@ -295,6 +299,7 @@ function postCancel (request, response) {
 
   function parseBody (done) {
     var email
+    var calledBack = false
     var parser = new Busboy({
       headers: request.headers,
       limits: {
@@ -308,11 +313,13 @@ function postCancel (request, response) {
         if (name === 'email') email = value.trim()
       })
       .once('finish', function () {
-        done(null, email)
+        if (!calledBack) done(null, email)
       })
-    pump(request, parser, function (error) {
-      if (error) return done(error)
-    })
+    request.pipe(parser)
+      .once('error', function (error) {
+        calledBack = true
+        done(error)
+      })
   }
 
   function showSuccessPage () {
