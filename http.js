@@ -291,6 +291,7 @@ function postCancel (request, response) {
       stripe.getActiveSubscription(
         customerID,
         function (error, subscription) {
+          /* istanbul ignore if */
           if (error) return serverError(error)
           if (!subscription) {
             response.statusCode = 400
