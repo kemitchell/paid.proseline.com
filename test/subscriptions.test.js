@@ -288,3 +288,30 @@ tape('GET /subscribe without capability', function (test) {
       .end()
   })
 })
+
+tape('GET /subscribe with invalid capability', function (test) {
+  server(function (port, done) {
+    http.request({
+      path: '/subscribe?capability=' + 'a'.repeat(64),
+      port
+    })
+      .once('response', function (response) {
+        test.equal(
+          response.statusCode, 400,
+          'responds 400'
+        )
+        concat(response, function (error, buffer) {
+          var body = buffer.toString()
+          test.ifError(error, 'no error')
+          var name = 'Invalid'
+          test.assert(
+            body.includes(name),
+            'body includes ' + JSON.stringify(name)
+          )
+          test.end()
+          done()
+        })
+      })
+      .end()
+  })
+})
