@@ -143,6 +143,7 @@ function postSubscribe (request, response) {
       stripe.getActiveSubscription(
         customerID,
         function (error, subscription) {
+          /* istanbul ignore if */
           if (error) return serverError(error)
           if (subscription) {
             return invalidRequest(response, 'already subscribed')
