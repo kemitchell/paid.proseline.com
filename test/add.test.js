@@ -73,3 +73,22 @@ tape('POST /add with huge body', function (test) {
     request.end()
   })
 })
+
+tape('POST /add with invalid body', function (test) {
+  server(function (port, done) {
+    var request = http.request({
+      method: 'POST',
+      path: '/add',
+      port
+    })
+      .once('response', function (response) {
+        test.equal(
+          response.statusCode, 400,
+          'responds 400'
+        )
+        test.end()
+        done()
+      })
+    request.end(JSON.stringify({}))
+  })
+})
