@@ -14,7 +14,7 @@ exports.createCustomer = function (email, source, callback) {
       return callback(new Error('invalid source'))
     }
     var customerID = nextCustomerID()
-    customers.set(customerID, {email})
+    customers.set(customerID, {email, customerID})
     callback(null, customerID)
   })
 }
@@ -45,14 +45,14 @@ exports.subscribe = function (customerID, callback) {
   })
 }
 
-exports.unsubscribe = function (customerID, callback) {
+exports.unsubscribe = function (subscriptionID, callback) {
   setImmediate(function () {
-    if (!customers.has(customerID)) {
-      return callback(new Error('no such customer'))
-    }
-    var customer = customers.get(customerID)
+    var customer = Array.from(customers).find(function (customer) {
+      return customer.subscriptionID === subscriptionID
+    })
+    if (!customer) return callback(new Error('no such subscription'))
     delete customer.subscriptionID
-    customers.set(customerID, customer)
+    customers.set(customer.customerID, customer)
     callback()
   })
 }

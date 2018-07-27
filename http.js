@@ -285,13 +285,37 @@ function postCancel (request, response) {
         return showSuccessPage()
       }
       request.log.info(user, 'user')
-      var capability = randomCapability()
-      request.log.info({capability}, 'capability')
-      send.cancel(
-        request.log, email, capability,
-        function (error) {
+      var customerID = user.customerID
+      stripe.getActiveSubscription(
+        customerID,
+        function (error, subscription) {
           if (error) return serverError(error)
-          showSuccessPage()
+          if (!subscription) {
+            response.statusCode = 400
+            response.setHeader('Content-Type', 'text/html')
+            return response.end(messagePage(
+              'Already Canceled',
+              [
+                'The subscription associated with your account ' +
+                'has already been canceled.'
+              ]
+            ))
+          }
+          var capability = randomCapability()
+          request.log.info({capability}, 'capability')
+          runSeries([
+            function (done) {
+              var object = {type: 'cancel'}
+              data.putCapability(email, customerID, capability, object, done)
+            },
+            function (done) {
+              request.log.info('put capability')
+              send.cancel(request.log, email, capability, done)
+            }
+          ], function (error) {
+            if (error) return serverError(error)
+            showSuccessPage()
+          })
         }
       )
     })
@@ -368,17 +392,20 @@ function startCancel (request, response) {
 }
 
 function finishCancel (request, response) {
-  var capability = request.query.capability
-  if (!capability || !validCapability(capability)) {
+  var capabilityString = request.query.capability
+  if (!capabilityString || !validCapability(capabilityString)) {
     response.statusCode = 400
     return response.end()
   }
+  request.log.info({capability: capabilityString}, 'capability')
   runWaterfall([
     function getCapability (done) {
-      data.getCapability(capability, done)
+      data.getCapability(capabilityString, done)
     },
     function getSubscription (capability, done) {
-      if (!capability) return done(new Error('invalid capability'))
+      if (!capability || capability.type !== 'cancel') {
+        return done(new Error('invalid capability'))
+      }
       request.log.info(capability, 'capability')
       stripe.getActiveSubscription(
         capability.customerID, done

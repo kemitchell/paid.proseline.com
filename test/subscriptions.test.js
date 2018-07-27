@@ -1,4 +1,6 @@
 var cancel = require('./cancel')
+var concat = require('simple-concat')
+var confirmCancel = require('./confirm-cancel')
 var confirmSubscribe = require('./confirm-subscribe')
 var http = require('http')
 var server = require('./server')
@@ -51,5 +53,64 @@ tape('POST /cancel', function (test) {
         })
       })
     })
+  })
+})
+
+tape('GET /cancel', function (test) {
+  server(function (port, done) {
+    var email = 'test@example.com'
+    subscribe(email, port, null, function (subscribeMessage) {
+      confirmSubscribe(subscribeMessage, port, null, function () {
+        cancel(email, port, null, function (cancelMessage) {
+          confirmCancel(cancelMessage, port, test, function () {
+            test.end()
+            done()
+          })
+        })
+      })
+    })
+  })
+})
+
+tape('GET /cancel without capability', function (test) {
+  server(function (port, done) {
+    http.request({path: '/cancel', port})
+      .once('response', function (response) {
+        test.equal(
+          response.statusCode, 200,
+          'responds 200'
+        )
+        test.assert(
+          response.headers['content-type'].includes('text/html'),
+          'text/html'
+        )
+        concat(response, function (error, buffer) {
+          var body = buffer.toString()
+          test.ifError(error, 'no error')
+          var name = 'Cancel'
+          test.assert(
+            body.includes(name),
+            'body includes ' + JSON.stringify(name)
+          )
+          test.end()
+          done()
+        })
+      })
+      .end()
+  })
+})
+
+tape('PUT /cancel', function (test) {
+  server(function (port, done) {
+    http.request({path: '/cancel', method: 'PUT', port})
+      .once('response', function (response) {
+        test.equal(
+          response.statusCode, 405,
+          'responds 405'
+        )
+        test.end()
+        done()
+      })
+      .end()
   })
 })
