@@ -6,7 +6,7 @@ module.exports = function (stream, limit, callback) {
       chunks.push(chunk)
       bytesReceived += chunk.length
       if (bytesReceived > limit) {
-        stream.abort()
+        stream.pause()
         var error = new Error('exceeded limit')
         error.limit = true
         callback(error)
