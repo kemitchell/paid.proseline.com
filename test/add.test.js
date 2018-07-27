@@ -50,3 +50,26 @@ tape('PUT /add', function (test) {
       .end()
   })
 })
+
+tape('POST /add with huge body', function (test) {
+  server(function (port, done) {
+    var request = http.request({
+      method: 'POST',
+      path: '/add',
+      port
+    })
+      .once('response', function (response) {
+        test.equal(
+          response.statusCode, 413,
+          'responds 413'
+        )
+        test.end()
+        done()
+      })
+    var buffer = Buffer.alloc(512)
+    for (var i = 0; i < 100; i++) {
+      request.write(buffer)
+    }
+    request.end()
+  })
+})
