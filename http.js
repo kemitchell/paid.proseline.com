@@ -54,7 +54,10 @@ module.exports = function (serverLog) {
       return response.end(process.env.PUBLIC_KEY)
     }
     if (pathname === STYLESHEET) return styles(request, response)
-    if (pathname === '/webhook') return webhook(request, response)
+    if (pathname === '/webhook') {
+      if (method === 'POST') return webhook(request, response)
+      return respond405(request, response)
+    }
     return notFound(request, response)
   }
 }
@@ -459,12 +462,16 @@ function webhook (request, response) {
     parse(buffer, function (error, parsed) {
       if (error) {
         response.statusCode = 400
-        response.end('invalid JSON')
+        return response.end('invalid JSON')
+      }
+      if (typeof parsed !== 'object') {
+        response.statusCode = 400
+        return response.end('not an object')
       }
       data.putWebhook(parsed, function (error, objectID) {
         if (error) {
           response.statusCode = 500
-          response.end()
+          return response.end()
         }
         request.log.info({objectID}, 'logged')
         response.end()

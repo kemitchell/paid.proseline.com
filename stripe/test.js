@@ -75,5 +75,5 @@ exports.getActiveSubscription = function (customerID, callback) {
 }
 
 exports.validSignature = function (request, body) {
-  return body.toString() === constants.VALID_STRIPE_SIGNATURE
+  return request.headers['stripe-signature'] === constants.VALID_STRIPE_SIGNATURE
 }
