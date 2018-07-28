@@ -130,6 +130,7 @@ function makeInvitationStream (options) {
     log.info({publicKey, replicationKey}, 'received invitation')
     var writeSeed = envelope.message.writeSeed
     if (!writeSeed) return log.info('no write seed')
+    var title = envelope.message.title
     ensureActiveSubscription(publicKey, function (error, email, subscription) {
       if (error) return log.error(error)
       if (!subscription) return log.info('no active subscription')
@@ -137,7 +138,9 @@ function makeInvitationStream (options) {
       log.info({discoveryKey}, 'putting')
       runParallel([
         function (done) {
-          data.putProjectKeys(discoveryKey, replicationKey, writeSeed, done)
+          data.putProjectKeys({
+            discoveryKey, replicationKey, writeSeed, title
+          }, done)
         },
         function (done) {
           data.putProjectUser(discoveryKey, email, done)
@@ -173,7 +176,11 @@ function makeInvitationStream (options) {
     data.getProjectKeys(discoveryKey, function (error, keys) {
       if (error) return log.error(error)
       var invitation = {
-        message: {replicationKey: keys.replicationKey, writeSeed: keys.writeSeed},
+        message: {
+          replicationKey: keys.replicationKey,
+          writeSeed: keys.writeSeed,
+          title: keys.title
+        },
         publicKey: process.env.PUBLIC_KEY
       }
       var signature = Buffer.alloc(sodium.crypto_sign_BYTES)

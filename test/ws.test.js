@@ -63,12 +63,10 @@ tape.test('Invitations', function (test) {
               message.writeSeed, writeSeed.toString('hex'),
               'received received write seed'
             )
-            /*
             test.equal(
               message.title, title,
               'received title'
             )
-            */
             firstWS.destroy()
             secondWS.destroy()
             test.end()

@@ -100,14 +100,19 @@ exports.getProjectKeys = function (discoveryKey, callback) {
   s3.get(projectKeysKey(discoveryKey), callback)
 }
 
-exports.putProjectKeys = function (discoveryKey, replicationKey, writeSeed, callback) {
-  assert.equal(typeof discoveryKey, 'string')
-  assert.equal(typeof replicationKey, 'string')
-  assert.equal(typeof writeSeed, 'string')
+exports.putProjectKeys = function (options, callback) {
+  assert.equal(typeof options, 'object')
+  assert.equal(typeof options.discoveryKey, 'string')
+  assert.equal(typeof options.replicationKey, 'string')
+  assert.equal(typeof options.writeSeed, 'string')
+  assert.equal(typeof options.title, 'string')
   assert.equal(typeof callback, 'function')
-  s3.put(
-    projectKeysKey(discoveryKey), {replicationKey, writeSeed}, callback
-  )
+  var discoveryKey = options.discoveryKey
+  var replicationKey = options.replicationKey
+  var writeSeed = options.writeSeed
+  var title = options.title
+  var record = {replicationKey, writeSeed, title}
+  s3.put(projectKeysKey(discoveryKey), record, callback)
 }
 
 function projectUserKey (discoveryKey, email) {
