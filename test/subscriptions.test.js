@@ -1,3 +1,4 @@
+var FormData = require('form-data')
 var cancel = require('./cancel')
 var concat = require('simple-concat')
 var confirmCancel = require('./confirm-cancel')
@@ -159,6 +160,43 @@ tape('POST /cancel', function (test) {
         })
       })
     })
+  })
+})
+
+tape('POST /cancel', function (test) {
+  server(function (port, done) {
+    var email = 'notauser@example.com'
+    var form = new FormData()
+    form.append('email', email)
+    var request = http.request({
+      method: 'POST',
+      path: '/cancel',
+      headers: form.getHeaders(),
+      port
+    })
+      .once('response', function (response) {
+        if (test) {
+          test.equal(
+            response.statusCode, 200,
+            'responds 200'
+          )
+          concat(response, function (error, buffer) {
+            var body = buffer.toString()
+            test.ifError(error, 'no error')
+            var string = 'E-Mail Sent'
+            test.assert(
+              body.includes(string),
+              'body includes ' + JSON.stringify(string)
+            )
+            test.end()
+            done()
+          })
+        }
+      })
+      .once('error', function (error) {
+        test.ifError(error)
+      })
+    form.pipe(request)
   })
 })
 
