@@ -407,7 +407,10 @@ function finishCancel (request, response) {
     },
     function getSubscription (capability, done) {
       if (!capability || capability.type !== 'cancel') {
-        return done(new Error('invalid capability'))
+        return done(new UserError(
+          'Invalid Capability',
+          ['The link you used is not valid. It may have expired.']
+        ))
       }
       request.log.info(capability, 'capability')
       stripe.getActiveSubscription(
@@ -417,15 +420,25 @@ function finishCancel (request, response) {
     function unsubscribe (subscription, done) {
       request.log.info(subscription, 'subscription')
       if (!subscription) {
-        return done(new Error('no active subscription'))
+        return done(new UserError(
+          'No Active Subscription',
+          ['Your account does not have an active subscription to cancel.']
+        ))
       }
       stripe.unsubscribe(subscription.id, done)
     }
   ], function (error) {
     if (error) {
-      request.log.error(error)
-      response.statusCode = 500
-      return response.end(serverErrorPage())
+      response.setHeader('Content-Type', 'text/html')
+      if (error instanceof UserError) {
+        request.log.error(error.title)
+        response.statusCode = 400
+        return response.end(messagePage(error.title, error.body))
+      } else {
+        request.log.error(error)
+        response.statusCode = 500
+        return response.end(serverErrorPage())
+      }
     }
     request.log.info('unsubscribed')
     response.setHeader('Content-Type', 'text/html')
@@ -434,6 +447,12 @@ function finishCancel (request, response) {
       ['Your subscription has been canceled.']
     ))
   })
+}
+
+function UserError (title, body) {
+  Error.call(this, title)
+  this.title = title
+  this.body = body
 }
 
 function messagePage (subtitle, message) {
