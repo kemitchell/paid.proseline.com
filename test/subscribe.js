@@ -5,8 +5,11 @@ var mailgun = require('../mailgun/test').events
 var makeKeyPair = require('./make-key-pair')
 var sign = require('./sign')
 
-module.exports = function (email, port, test, callback) {
-  var keyPair = makeKeyPair()
+module.exports = function (options, callback) {
+  var keyPair = options.keyPair || makeKeyPair()
+  var email = options.email
+  var port = options.port
+  var test = options.test
   var message = {
     token: constants.VALID_STRIPE_SOURCE,
     date: new Date().toISOString(),

@@ -9,7 +9,7 @@ var tape = require('tape')
 tape('POST /add', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
-    subscribe(email, port, null, function (message) {
+    subscribe({email, port}, function (message) {
       confirmSubscribe(message, port, null, function () {
         add(email, port, test, function () {
           test.end()
@@ -23,7 +23,7 @@ tape('POST /add', function (test) {
 tape('GET /add', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
-    subscribe(email, port, null, function (subscribeMessage) {
+    subscribe({email, port}, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, test, function () {
         add(email, port, null, function (addMessage) {
           confirmAdd(addMessage, port, test, function () {
