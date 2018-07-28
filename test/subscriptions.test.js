@@ -200,6 +200,51 @@ tape('POST /cancel', function (test) {
   })
 })
 
+tape('POST /cancel', function (test) {
+  server(function (port, done) {
+    var email = 'test@example.com'
+    subscribe({email, port}, function (subscribeMessage) {
+      confirmSubscribe(subscribeMessage, port, null, function () {
+        cancel(email, port, null, function (cancelMessage) {
+          confirmCancel(cancelMessage, port, null, function () {
+            var form = new FormData()
+            form.append('email', email)
+            var request = http.request({
+              method: 'POST',
+              path: '/cancel',
+              headers: form.getHeaders(),
+              port
+            })
+              .once('response', function (response) {
+                if (test) {
+                  test.equal(
+                    response.statusCode, 400,
+                    'responds 400'
+                  )
+                  concat(response, function (error, buffer) {
+                    var body = buffer.toString()
+                    test.ifError(error, 'no error')
+                    var string = 'Already Canceled'
+                    test.assert(
+                      body.includes(string),
+                      'body includes ' + JSON.stringify(string)
+                    )
+                    test.end()
+                    done()
+                  })
+                }
+              })
+              .once('error', function (error) {
+                test.ifError(error)
+              })
+            form.pipe(request)
+          })
+        })
+      })
+    })
+  })
+})
+
 tape('GET /cancel', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
