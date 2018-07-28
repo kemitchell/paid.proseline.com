@@ -36,7 +36,10 @@ exports.get = function (key, callback) {
     Bucket: BUCKET,
     Key: key
   }, function (error, data) {
-    if (error) return callback(error)
+    if (error) {
+      if (error.code === 'NoSuchKey') return callback(null, undefined)
+      return callback(error)
+    }
     parse(data.Body, callback)
   })
 }
