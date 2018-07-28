@@ -1,5 +1,6 @@
 var assert = require('assert')
 var aws = require('aws-sdk')
+var parse = require('json-parse-errback')
 
 var DELIMITER = exports.DELIMITER = '/'
 var BUCKET = process.env.S3_BUCKET
@@ -36,7 +37,7 @@ exports.get = function (key, callback) {
     Key: key
   }, function (error, data) {
     if (error) return callback(error)
-    callback(null, data.Body)
+    parse(data.Body, callback)
   })
 }
 
