@@ -581,6 +581,7 @@ function postAdd (request, response) {
   })
 
   function invalidRequest (error) {
+    response.statusCode = 400
     request.log.error(error)
     response.end(JSON.stringify({error}))
   }

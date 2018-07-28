@@ -1,4 +1,5 @@
 var add = require('./add')
+var concat = require('simple-concat')
 var confirmAdd = require('./confirm-add')
 var confirmSubscribe = require('./confirm-subscribe')
 var http = require('http')
@@ -86,8 +87,16 @@ tape('POST /add with invalid body', function (test) {
           response.statusCode, 400,
           'responds 400'
         )
-        test.end()
-        done()
+        concat(response, function (error, buffer) {
+          test.ifError(error, 'no error')
+          test.equal(
+            buffer.toString(),
+            JSON.stringify({error: 'invalid add'}),
+            'invalid add message'
+          )
+          test.end()
+          done()
+        })
       })
     request.end(JSON.stringify({}))
   })
