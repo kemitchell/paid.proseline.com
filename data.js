@@ -55,6 +55,7 @@ exports.getLastIndex = function (discoveryKey, publicKey, callback) {
         if (error.code === 'NoSuchKey') return callback(null, 0)
         return callback(error)
       }
+      if (!key) return callback(null, undefined)
       var index = key.split(DELIMITER)[4]
       callback(null, indices.parse(index))
     }

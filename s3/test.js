@@ -14,11 +14,10 @@ exports.first = function (prefix, callback) {
   assert.equal(typeof prefix, 'string')
   assert.equal(typeof callback, 'function')
   setImmediate(function () {
-    var key = data
-      .keys()
+    var key = Array.from(data.keys())
       .sort()
-      .find(function (element) {
-        return element.key.startsWith(prefix)
+      .find(function (key) {
+        return key.startsWith(prefix)
       })
     callback(null, key)
   })
@@ -58,8 +57,8 @@ exports.list = function (prefix, callback) {
   setImmediate(function () {
     var keys = Array.from(data.keys())
       .sort()
-      .filter(function (element) {
-        return element.startsWith(prefix)
+      .filter(function (key) {
+        return key.startsWith(prefix)
       })
     callback(null, keys)
   })
