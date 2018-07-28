@@ -221,6 +221,27 @@ function makeReplicationStream (options) {
   var writeSeed = options.writeSeed
   var log = options.log.child({discoveryKey})
 
+  // For each log, track the highest index that we believe our
+  // peer has, and use it to avoid sending unnecessary offers.
+  var heads = new Map()
+
+  function advancePeerHead (reference) {
+    assert(isReference(reference))
+    var publicKey = reference.publicKey
+    var index = reference.index
+    var current = heads.get(publicKey)
+    if (current === undefined) return
+    if (index > current) heads.set(publicKey, index)
+  }
+
+  function shouldSend (reference) {
+    assert(isReference(reference))
+    var current = heads.get(reference.publicKey)
+    if (current === undefined) return true
+    if (reference.index > current) return true
+    return false
+  }
+
   var returned = new protocol.Replication({
     encryptionKey: Buffer.from(replicationKey, 'hex'),
     seed: Buffer.from(writeSeed, 'hex')
@@ -245,13 +266,9 @@ function makeReplicationStream (options) {
           if (index === undefined) {
             return log.error({discoveryKey, publicKey}, 'no envelopes')
           }
-          var offer = {publicKey, index}
-          log.info(offer, 'last index')
-          log.info(offer, 'sending offer')
-          returned.offer(offer, function (error) {
-            if (error) return log.error(error)
-            log.info(offer, 'sent offer')
-          })
+          var reference = {publicKey, index}
+          log.info(reference, 'last index')
+          sendOffer(reference)
         })
       })
     })
@@ -267,35 +284,32 @@ function makeReplicationStream (options) {
     })
   })
 
-  function sendEnvelope (request, done) {
-    var publicKey = request.publicKey
-    var index = request.index
+  function sendEnvelope (reference, done) {
+    assert(isReference(reference))
+    var publicKey = reference.publicKey
+    var index = reference.index
     data.getEnvelope(
       discoveryKey, publicKey, index,
       function (error, envelope) {
         if (error) return done(error)
         if (!envelope) return done()
-        log.info(request, 'sending envelope')
+        log.info(reference, 'sending envelope')
         returned.envelope(envelope, function (error) {
           if (error) return done(error)
-          log.info(request, 'sent envelope')
+          advancePeerHead(reference)
+          log.info(reference, 'sent envelope')
           done()
         })
       }
     )
   }
 
-  function onEnvelopeEvent (reference) {
-    sendEnvelope(reference, function (error) {
-      if (error) return log.error(error)
-    })
-  }
-
   // When our peer offers an envelope...
-  returned.on('offer', function (offer) {
-    log.info(offer, 'received offer')
-    var publicKey = offer.publicKey
-    var offeredIndex = offer.index
+  returned.on('offer', function (reference) {
+    log.info(reference, 'received offer')
+    var publicKey = reference.publicKey
+    var offeredIndex = reference.index
+    advancePeerHead(reference)
     data.getLastIndex(discoveryKey, publicKey, function (error, last) {
       if (error) return log.error(error)
       if (last === undefined) last = -1
@@ -311,16 +325,32 @@ function makeReplicationStream (options) {
     })
   })
 
+  function onEnvelopeEvent (reference) {
+    sendOffer(reference, function (error) {
+      if (error) return log.error(error)
+    })
+  }
+
+  function sendOffer (reference) {
+    if (!shouldSend(reference)) return
+    log.info(reference, 'sending offer')
+    returned.offer(reference, function (error) {
+      if (error) return log.error(error)
+      log.info(reference, 'sent offer')
+    })
+  }
+
   // When our peer sends an envelope...
   returned.on('envelope', function (envelope) {
     var publicKey = envelope.publicKey
     var index = envelope.message.index
-    var pair = {publicKey, index}
-    log.info(pair, 'received envelope')
+    var reference = {publicKey, index}
+    advancePeerHead(reference)
+    log.info(reference, 'received envelope')
     if (envelope.message.project !== discoveryKey) {
-      return log.error(pair, 'project mismatch')
+      return log.error(reference, 'project mismatch')
     }
-    log.info(pair, 'putting envelope')
+    log.info(reference, 'putting envelope')
     if (index === 0) {
       data.putProjectPublicKey(
         discoveryKey, publicKey,
@@ -332,7 +362,7 @@ function makeReplicationStream (options) {
     }
     data.putEnvelope(envelope, function (error) {
       if (error) return log.error(error)
-      log.info(pair, 'put envelope')
+      log.info(reference, 'put envelope')
     })
   })
 
@@ -353,4 +383,14 @@ function hashHexString (hex) {
   var digest = Buffer.alloc(sodium.crypto_generichash_BYTES)
   sodium.crypto_generichash(digest, Buffer.from(hex, 'hex'))
   return digest.toString('hex')
+}
+
+function isReference (object) {
+  return typeof (
+    object === 'object' &&
+    object.hasOwnProperty('publicKey') &&
+    typeof object.publicKey === 'string' &&
+    object.hasOwnProperty('secretKey') &&
+    typeof object.secretKey === 'string'
+  )
 }
