@@ -2,6 +2,7 @@ var assert = require('assert')
 var async = require('async')
 var data = require('./data')
 var duplexify = require('duplexify')
+var events = require('./events')
 var multiplex = require('multiplex')
 var protocol = require('proseline-protocol')
 var runParallel = require('run-parallel')
@@ -82,6 +83,14 @@ module.exports = function (serverLog) {
       })
     })
 
+    socket.once('close', function () {
+      invitationTransport.destroy()
+      Array.from(streams.values()).forEach(function (stream) {
+        stream.destroy()
+      })
+      plex.destroy()
+    })
+
     connect(plex, socket)
   }
 }
@@ -138,9 +147,12 @@ function makeInvitationStream (options) {
         }
       ], function (error) {
         if (error) return log.error(error)
+        events.emit(`invitation:${email}`, {discoveryKey})
       })
     })
   })
+
+  var eventName
 
   returned.on('request', function (envelope) {
     var publicKey = envelope.publicKey
@@ -148,30 +160,42 @@ function makeInvitationStream (options) {
     ensureActiveSubscription(publicKey, function (error, email, subscription) {
       if (error) return log.error(error)
       if (!subscription) return log.info('no active subscription')
+      eventName = `invitation:${email}`
+      events.addListener(eventName, onInvitationEvent)
       data.listUserProjects(email, function (error, discoveryKeys) {
         if (error) return log.error(error)
-        discoveryKeys.forEach(function (discoveryKey) {
-          data.getProjectKeys(discoveryKey, function (error, keys) {
-            if (error) return log.error(error)
-            var invitation = {
-              message: {replicationKey: keys.replicationKey, writeSeed: keys.writeSeed},
-              publicKey: process.env.PUBLIC_KEY
-            }
-            var signature = Buffer.alloc(sodium.crypto_sign_BYTES)
-            sodium.crypto_sign_detached(
-              signature,
-              Buffer.from(stringify(invitation.message), 'utf8'),
-              Buffer.from(process.env.SECRET_KEY, 'hex')
-            )
-            invitation.signature = signature.toString('hex')
-            returned.invitation(invitation, function (error) {
-              if (error) return log.error(error)
-              log.info({discoveryKey}, 'sent invitation')
-            })
-          })
-        })
+        discoveryKeys.forEach(sendInvitation)
       })
     })
+  })
+
+  function sendInvitation (discoveryKey) {
+    data.getProjectKeys(discoveryKey, function (error, keys) {
+      if (error) return log.error(error)
+      var invitation = {
+        message: {replicationKey: keys.replicationKey, writeSeed: keys.writeSeed},
+        publicKey: process.env.PUBLIC_KEY
+      }
+      var signature = Buffer.alloc(sodium.crypto_sign_BYTES)
+      sodium.crypto_sign_detached(
+        signature,
+        Buffer.from(stringify(invitation.message), 'utf8'),
+        Buffer.from(process.env.SECRET_KEY, 'hex')
+      )
+      invitation.signature = signature.toString('hex')
+      returned.invitation(invitation, function (error) {
+        if (error) return log.error(error)
+        log.info({discoveryKey}, 'sent invitation')
+      })
+    })
+  }
+
+  function onInvitationEvent (message) {
+    sendInvitation(message.discoveryKey)
+  }
+
+  returned.once('close', function () {
+    if (eventName) events.removeListener(eventName, onInvitationEvent)
   })
 
   returned.on('invalid', function (message) {
@@ -202,6 +226,9 @@ function makeReplicationStream (options) {
     seed: Buffer.from(writeSeed, 'hex')
   })
 
+  var eventName = `project:${discoveryKey}`
+  events.addListener(eventName, onEnvelopeEvent)
+
   returned.once('handshake', function () {
     log.info('received handshake')
     log.info('sending handshake')
@@ -231,7 +258,16 @@ function makeReplicationStream (options) {
   })
 
   // When our peer requests an envelope...
-  var requestQueue = async.queue(function (request, done) {
+  var requestQueue = async.queue(sendEnvelope, 1)
+
+  returned.on('request', function (request) {
+    log.info(request, 'received request')
+    requestQueue.push(request, function (error) {
+      if (error) log.error(error)
+    })
+  })
+
+  function sendEnvelope (request, done) {
     var publicKey = request.publicKey
     var index = request.index
     data.getEnvelope(
@@ -247,14 +283,13 @@ function makeReplicationStream (options) {
         })
       }
     )
-  }, 1)
+  }
 
-  returned.on('request', function (request) {
-    log.info(request, 'received request')
-    requestQueue.push(request, function (error) {
-      if (error) log.error(error)
+  function onEnvelopeEvent (reference) {
+    sendEnvelope(reference, function (error) {
+      if (error) return log.error(error)
     })
-  })
+  }
 
   // When our peer offers an envelope...
   returned.on('offer', function (offer) {
@@ -299,6 +334,10 @@ function makeReplicationStream (options) {
       if (error) return log.error(error)
       log.info(pair, 'put envelope')
     })
+  })
+
+  returned.once('close', function () {
+    if (eventName) events.removeListener(eventName, onEnvelopeEvent)
   })
 
   returned.on('invalid', function (message) {
