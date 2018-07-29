@@ -385,9 +385,8 @@ function makeReplicationStream (options) {
   })
 
   function onEnvelopeEvent (reference) {
-    sendOffer(reference, function (error) {
-      if (error) return log.error(error)
-    })
+    log.info(reference, 'envelope event')
+    sendOffer(reference)
   }
 
   function sendOffer (reference) {
@@ -422,6 +421,7 @@ function makeReplicationStream (options) {
     data.putEnvelope(envelope, function (error) {
       if (error) return log.error(error)
       log.info(reference, 'put envelope')
+      events.emit(`project:${discoveryKey}`, reference)
     })
   })
 

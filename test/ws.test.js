@@ -453,3 +453,129 @@ tape('invitations across websockets', function (test) {
     }
   })
 })
+
+tape('envelopes across sockets', function (test) {
+  server(function (port, done) {
+    // User
+    var keyPair = makeKeyPair()
+    var email = 'test@example.com'
+
+    // Project
+    var replicationKey = makeRandom(32)
+    var discoveryKey = hash(replicationKey).toString('hex')
+    var writeSeed = makeRandom(32)
+    var writeKeyPair = keyPairFromSeed(writeSeed)
+    var title = 'test project'
+
+    // First Entry
+    var publicKey = keyPair.publicKey.toString('hex')
+    var index = 0
+    var message = {
+      project: discoveryKey,
+      index: 0,
+      body: {
+        type: 'intro',
+        name: 'John Doe',
+        device: 'laptop',
+        timestamp: new Date().toISOString()
+      }
+    }
+    var envelope = {
+      message,
+      publicKey,
+      signature: sign(message, keyPair.secretKey).toString('hex'),
+      authorization: sign(message, writeKeyPair.secretKey).toString('hex')
+    }
+
+    runSeries([
+      createSubscription,
+      inviteServerAndAwaitOffer,
+      sendEnvelope
+    ])
+
+    function finish () {
+      test.end()
+      done()
+    }
+
+    function createSubscription (done) {
+      subscribe({keyPair, email, port}, function (subscribeMessage) {
+        confirmSubscribe(subscribeMessage, port, null, done)
+      })
+    }
+
+    function inviteServerAndAwaitOffer (done) {
+      var ws = makeWebsocket(port)
+      var plex = multiplex()
+      var invitation = makeInvitationProtocol(plex)
+      var invite = makeInvitation(keyPair, {replicationKey, writeSeed, title})
+      invitation.invitation(invite, function (error) {
+        test.ifError(error, 'no send invitation error')
+        setTimeout(function () {
+          var replication = makeReplicationProtocol({
+            discoveryKey,
+            plex,
+            replicationKey,
+            publicKey: writeKeyPair.publicKey,
+            secretKey: writeKeyPair.secretKey
+          })
+          replication.handshake(function (error) {
+            test.ifError(error, 'no error sending handshake')
+          })
+          replication.once('handshake', function () {
+            replication.once('offer', function (offer) {
+              test.equal(
+                offer.publicKey, publicKey,
+                'server offers public key'
+              )
+              test.equal(
+                offer.index, index,
+                'server offers index'
+              )
+              ws.destroy()
+              finish()
+            })
+          })
+          done()
+        }, 100)
+      })
+      connect(plex, ws)
+    }
+
+    function sendEnvelope (done) {
+      var ws = makeWebsocket(port)
+      var plex = multiplex()
+      var replication = makeReplicationProtocol({
+        discoveryKey,
+        plex,
+        replicationKey,
+        publicKey: writeKeyPair.publicKey,
+        secretKey: writeKeyPair.secretKey
+      })
+      replication.handshake(function (error) {
+        test.ifError(error, 'no error sending handshake')
+      })
+      replication.once('handshake', function () {
+        replication.offer({publicKey, index}, function (error) {
+          test.ifError(error, 'no error offering to server')
+        })
+        replication.once('request', function (request) {
+          test.equal(
+            request.publicKey, publicKey,
+            'server requests public key'
+          )
+          test.equal(
+            request.index, index,
+            'server requests index'
+          )
+          replication.envelope(envelope, function (error) {
+            test.ifError(error, 'no error sending envelope')
+            ws.destroy()
+            done()
+          })
+        })
+      })
+      connect(plex, ws)
+    }
+  })
+})
