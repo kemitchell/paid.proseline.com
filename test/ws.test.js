@@ -286,3 +286,41 @@ function makeReplicationProtocol (options) {
   connect(protocolStream, transport)
   return protocolStream
 }
+
+tape('replicate unknown project', function (test) {
+  server(function (port, done) {
+    // Project
+    var replicationKey = makeRandom(32)
+    var discoveryKey = hash(replicationKey).toString('hex')
+    var writeSeed = makeRandom(32)
+    var writeKeyPair = keyPairFromSeed(writeSeed)
+
+    var ws = makeWebsocket(port)
+      .once('close', function () {
+        test.pass('ws closed')
+        plex.destroy()
+      })
+    var plex = multiplex()
+    var transport = plex.createSharedStream(discoveryKey)
+    var replication = protocol.Replication({
+      encryptionKey: replicationKey,
+      publicKey: writeKeyPair.publicKey,
+      secretKey: writeKeyPair.secretKey
+    })
+    connect(replication, transport)
+    replication.handshake(function (error) {
+      test.ifError(error, 'no handshake error')
+    })
+    transport.once('error', function (error) {
+      test.assert(
+        /destroyed/i.test(error.message),
+        'destroyed'
+      )
+      replication.destroy()
+      ws.destroy()
+      test.end()
+      done()
+    })
+    connect(plex, ws)
+  })
+})
