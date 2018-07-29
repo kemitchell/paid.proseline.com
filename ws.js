@@ -445,11 +445,9 @@ function hashHexString (hex) {
 }
 
 function isReference (object) {
-  return typeof (
-    object === 'object' &&
-    object.hasOwnProperty('publicKey') &&
+  return (
+    typeof object === 'object' &&
     typeof object.publicKey === 'string' &&
-    object.hasOwnProperty('secretKey') &&
-    typeof object.secretKey === 'string'
+    typeof object.index === 'number'
   )
 }
