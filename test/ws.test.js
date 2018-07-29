@@ -119,6 +119,30 @@ function makeRandom (bytes) {
   return returned
 }
 
+tape('invitation for request without subscription', function (test) {
+  server(function (port, done) {
+    var email = 'test@example.com'
+    var keyPair = makeKeyPair()
+    var ws = makeWebsocket(port)
+    var plex = multiplex()
+    connect(plex, ws)
+    var invitation = makeInvitationProtocol(plex)
+    var request = makeInvitationRequest(email, keyPair)
+    invitation.request(request, function (error) {
+      test.ifError(error, 'no request send error')
+      test.pass('sent request')
+      setTimeout(function () {
+        ws.destroy()
+        test.end()
+        done()
+      }, 100)
+    })
+    invitation.once('invitation', function () {
+      test.fail('received invitation')
+    })
+  })
+})
+
 tape('Replication', function (test) {
   server(function (port, done) {
     // User
