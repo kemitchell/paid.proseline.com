@@ -1,4 +1,5 @@
 var confirmSubscribe = require('./confirm-subscribe')
+var duplexify = require('duplexify')
 var makeKeyPair = require('./make-key-pair')
 var multiplex = require('multiplex')
 var protocol = require('proseline-protocol')
@@ -346,5 +347,109 @@ tape('replicate unknown project', function (test) {
       done()
     })
     connect(plex, ws)
+  })
+})
+
+tape('invitations across websockets', function (test) {
+  server(function (port, done) {
+    // User
+    var email = 'test@example.com'
+    var keyPair = makeKeyPair()
+    var title = 'test project'
+
+    // Project
+    var replicationKey = makeRandom(32)
+    var discoveryKey = hash(replicationKey).toString('hex')
+    var writeSeed = makeRandom(32)
+    var writeKeyPair = keyPairFromSeed(writeSeed)
+
+    runSeries([
+      createSubscription,
+      // Connect a WebSocket client that expects to try and fail
+      // to replicate the project, then receives an offer to
+      // successfully replicate the same project.
+      connectAndAwaitReplication,
+      // Connect a WebSocket client that sends the invitation
+      // that enables to server to replicate the project.
+      connectAndInvite
+    ])
+
+    function createSubscription (done) {
+      subscribe({keyPair, email, port}, function (message) {
+        confirmSubscribe(message, port, null, done)
+      })
+    }
+
+    function connectAndAwaitReplication (done) {
+      var ws = makeWebsocket(port)
+      var plex = multiplex()
+      makeInvitationProtocol(plex)
+      var firstReplicationTransport = duplexify(
+        plex.createStream(discoveryKey),
+        plex.receiveStream(discoveryKey)
+      )
+      var firstReplication = protocol.Replication({
+        encryptionKey: replicationKey,
+        publicKey: writeKeyPair.publicKey,
+        secretKey: writeKeyPair.secretKey
+      })
+      plex.once('stream', function (receiveStream, id) {
+        test.equal(
+          discoveryKey, id,
+          'offered replication'
+        )
+        var secondReplicationTransport = duplexify(
+          plex.createStream(discoveryKey),
+          receiveStream
+        )
+        var secondReplication = protocol.Replication({
+          encryptionKey: replicationKey,
+          publicKey: writeKeyPair.publicKey,
+          secretKey: writeKeyPair.secretKey
+        })
+        secondReplication.handshake(function (error) {
+          test.ifError(error, 'no second handshake error')
+        })
+        secondReplication.once('handshake', function () {
+          test.pass('received second handshake')
+          ws.destroy()
+          finish()
+        })
+        connect(secondReplication, secondReplicationTransport)
+      })
+      firstReplication.handshake(function (error) {
+        test.ifError(error, 'no handshake error')
+      })
+      firstReplicationTransport.once('error', function (error) {
+        test.assert(
+          /destroyed/i.test(error.message),
+          'destroyed'
+        )
+        done()
+      })
+      connect(firstReplication, firstReplicationTransport)
+      connect(plex, ws)
+    }
+
+    function connectAndInvite (done) {
+      var ws = makeWebsocket(port)
+      var plex = multiplex()
+      connect(plex, ws)
+      var invitation = makeInvitationProtocol(plex)
+      var invite = makeInvitation(keyPair, {replicationKey, writeSeed, title})
+      invitation.invitation(invite, function (error) {
+        test.ifError(error, 'no send invitation error')
+        test.pass('sent invitation')
+        setTimeout(function () {
+          ws.destroy()
+          done()
+        }, 100)
+      })
+    }
+
+    function finish () {
+      test.end()
+      done()
+    }
   })
 })

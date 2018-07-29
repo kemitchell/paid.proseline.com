@@ -39,20 +39,68 @@ module.exports = function (serverLog) {
       streams.delete(INVITATION_STREAM_NAME)
     })
 
+    // Unknown Projects
+    var unknownProjects = new Set()
+
+    function addUnknownProject (discoveryKey) {
+      log.info({discoveryKey}, 'adding unknown')
+      if (unknownProjects.has(discoveryKey)) return
+      unknownProjects.add(discoveryKey)
+      var eventName = `invitation:${discoveryKey}`
+      events.addListener(eventName, onUnknownProject)
+    }
+
+    function removeUnknownProject (discoveryKey) {
+      unknownProjects.delete(discoveryKey)
+      var eventName = `invitation:${discoveryKey}`
+      events.removeListener(eventName, onUnknownProject)
+    }
+
+    function onUnknownProject (data) {
+      var discoveryKey = data.discoveryKey
+      log.info({discoveryKey}, 'invited to unknown')
+      replicateProject({discoveryKey})
+    }
+
+    function removeUnknownProjectListeners () {
+      Array.from(unknownProjects).forEach(function (discoveryKey) {
+        var eventName = `project:${discoveryKey}`
+        events.removeListener(eventName, onUnknownProject)
+      })
+    }
+
     // Replication Streams
     plex.on('stream', function (receiveStream, discoveryKey) {
-      var childLog = log.child({protocol: 'replication', discoveryKey})
-      var replicationTransport = duplexify(
+      var transport = duplexify(
         plex.createStream(discoveryKey),
         receiveStream
       )
-      streams.set(discoveryKey, replicationTransport)
+      replicateProject({discoveryKey, transport})
+    })
+
+    function replicateProject (options) {
+      var discoveryKey = options.discoveryKey
+      var transport = options.transport
+      if (!transport) {
+        // Create and duplexify send and receive streams to avoid
+        // createSharedStream, which creates lazy send streams.
+        transport = duplexify(
+          plex.createStream(discoveryKey),
+          plex.receiveStream(discoveryKey)
+        )
+      }
+      var childLog = log.child({protocol: 'replication', discoveryKey})
+      streams.set(discoveryKey, transport)
       data.getProjectKeys(discoveryKey, function (error, keys) {
         if (error) {
           childLog.error(error)
           return destroy()
         }
-        if (!keys) return destroy()
+        if (!keys) {
+          addUnknownProject(discoveryKey)
+          return destroy()
+        }
+        removeUnknownProject(discoveryKey)
         var replicationKey = keys.replicationKey
         var writeSeed = keys.writeSeed
         childLog.info('replicating')
@@ -66,24 +114,25 @@ module.exports = function (serverLog) {
           .once('close', function () {
             destroy()
           })
-        replicationTransport
+        transport
           .on('error', function (error) {
             childLog.error(error)
           })
           .once('close', function () {
             destroy()
           })
-        replicationProtocol.pipe(replicationTransport).pipe(replicationProtocol)
+        replicationProtocol.pipe(transport).pipe(replicationProtocol)
         function destroy () {
           childLog.info('destroying')
           if (replicationProtocol) replicationProtocol.destroy()
-          replicationTransport.destroy()
+          transport.destroy()
           streams.delete(discoveryKey)
         }
       })
-    })
+    }
 
     socket.once('close', function () {
+      removeUnknownProjectListeners()
       invitationTransport.destroy()
       Array.from(streams.values()).forEach(function (stream) {
         stream.destroy()
@@ -150,7 +199,10 @@ function makeInvitationStream (options) {
         }
       ], function (error) {
         if (error) return log.error(error)
-        events.emit(`invitation:${email}`, {discoveryKey})
+        var data = {email, discoveryKey}
+        log.info('emitting events')
+        events.emit(`invitation:${email}`, data)
+        events.emit(`invitation:${discoveryKey}`, data)
       })
     })
   })
