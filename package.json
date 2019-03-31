@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "depcheck": "^0.6.9",
-    "form-data": "^2.3.2",
+    "form-data": "^2.3.3",
     "husky": "^0.14.3",
     "istanbul": "^0.4.5",
     "licensee": "^4.5.0",
