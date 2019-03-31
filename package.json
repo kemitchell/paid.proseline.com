@@ -1,7 +1,7 @@
 {
   "private": true,
   "dependencies": {
-    "ajv": "^6.5.2",
+    "ajv": "^6.10.0",
     "async": "^2.6.1",
     "aws-sdk": "^2.279.1",
     "busboy": "^0.2.14",
