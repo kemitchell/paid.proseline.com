@@ -2,7 +2,7 @@
   "private": true,
   "dependencies": {
     "ajv": "^6.10.0",
-    "async": "^2.6.1",
+    "async": "^2.6.2",
     "aws-sdk": "^2.279.1",
     "busboy": "^0.2.14",
     "duplexify": "^3.6.0",
