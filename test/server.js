@@ -18,7 +18,7 @@ module.exports = function (test) {
   websocketStream.createServer({
     server: server,
     perMessageDeflate: false
-  }, websocketHandler(log.child({subsytem: 'ws'})))
+  }, websocketHandler(log.child({ subsytem: 'ws' })))
   server.listen(0, function () {
     test(this.address().port, function () {
       s3.clear()

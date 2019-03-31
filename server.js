@@ -11,7 +11,7 @@ var httpServer = http.createServer(httpHandler(log))
 websocketStream.createServer({
   server: httpServer,
   perMessageDeflate: false
-}, websocketHandler(log.child({subsytem: 'ws'})))
+}, websocketHandler(log.child({ subsytem: 'ws' })))
 
 function trap () {
   log.info('signal')
@@ -36,5 +36,5 @@ process.on('uncaughtException', function (exception) {
 var port = process.env.PORT || 8080
 httpServer.listen(port, function () {
   var port = this.address().port
-  log.info({port}, 'listening')
+  log.info({ port }, 'listening')
 })

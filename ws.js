@@ -15,7 +15,7 @@ var INVITATION_STREAM_NAME = 'invitation'
 
 module.exports = function (serverLog) {
   return function (socket, request) {
-    var log = serverLog.child({socket: uuid.v4()})
+    var log = serverLog.child({ socket: uuid.v4() })
     log.info({
       ip: request.connection.remoteAddress,
       headers: request.headers
@@ -31,7 +31,7 @@ module.exports = function (serverLog) {
     var invitationTransport = plex.createSharedStream(INVITATION_STREAM_NAME)
     streams.set(INVITATION_STREAM_NAME, invitationTransport)
     var invitationProtocol = makeInvitationStream({
-      log: log.child({protocol: 'invitation'})
+      log: log.child({ protocol: 'invitation' })
     })
     connect(invitationTransport, invitationProtocol)
     invitationTransport.once('close', function () {
@@ -43,7 +43,7 @@ module.exports = function (serverLog) {
     var unknownProjects = new Set()
 
     function addUnknownProject (discoveryKey) {
-      log.info({discoveryKey}, 'adding unknown')
+      log.info({ discoveryKey }, 'adding unknown')
       if (unknownProjects.has(discoveryKey)) return
       unknownProjects.add(discoveryKey)
       var eventName = `invitation:${discoveryKey}`
@@ -58,8 +58,8 @@ module.exports = function (serverLog) {
 
     function onUnknownProject (data) {
       var discoveryKey = data.discoveryKey
-      log.info({discoveryKey}, 'invited to unknown')
-      replicateProject({discoveryKey})
+      log.info({ discoveryKey }, 'invited to unknown')
+      replicateProject({ discoveryKey })
     }
 
     function removeUnknownProjectListeners () {
@@ -75,7 +75,7 @@ module.exports = function (serverLog) {
         plex.createStream(discoveryKey),
         receiveStream
       )
-      replicateProject({discoveryKey, transport})
+      replicateProject({ discoveryKey, transport })
     })
 
     function replicateProject (options) {
@@ -89,7 +89,7 @@ module.exports = function (serverLog) {
           plex.receiveStream(discoveryKey)
         )
       }
-      var childLog = log.child({protocol: 'replication', discoveryKey})
+      var childLog = log.child({ protocol: 'replication', discoveryKey })
       streams.set(discoveryKey, transport)
       data.getProjectKeys(discoveryKey, function (error, keys) {
         if (error) {
@@ -168,7 +168,7 @@ function ensureActiveSubscription (publicKey, callback) {
 }
 
 function makeInvitationStream (options) {
-  assert.equal(typeof options, 'object')
+  assert.strictEqual(typeof options, 'object')
   assert(options.log)
   var log = options.log
   var returned = new protocol.Invitation()
@@ -176,7 +176,7 @@ function makeInvitationStream (options) {
   returned.on('invitation', function (envelope) {
     var publicKey = envelope.publicKey
     var replicationKey = envelope.message.replicationKey
-    log.info({publicKey, replicationKey}, 'received invitation')
+    log.info({ publicKey, replicationKey }, 'received invitation')
     var writeSeed = envelope.message.writeSeed
     if (!writeSeed) return log.info('no write seed')
     var title = envelope.message.title
@@ -184,7 +184,7 @@ function makeInvitationStream (options) {
       if (error) return log.error(error)
       if (!subscription) return log.info('no active subscription')
       var discoveryKey = hashHexString(replicationKey)
-      log.info({discoveryKey}, 'putting')
+      log.info({ discoveryKey }, 'putting')
       runParallel([
         function (done) {
           data.putProjectKeys({
@@ -199,7 +199,7 @@ function makeInvitationStream (options) {
         }
       ], function (error) {
         if (error) return log.error(error)
-        var data = {email, discoveryKey}
+        var data = { email, discoveryKey }
         log.info('emitting events')
         events.emit(`invitation:${email}`, data)
         events.emit(`invitation:${discoveryKey}`, data)
@@ -211,7 +211,7 @@ function makeInvitationStream (options) {
 
   returned.on('request', function (envelope) {
     var publicKey = envelope.publicKey
-    log.info({publicKey}, 'received request')
+    log.info({ publicKey }, 'received request')
     ensureActiveSubscription(publicKey, function (error, email, subscription) {
       if (error) return log.error(error)
       if (!subscription) return log.info('no active subscription')
@@ -244,7 +244,7 @@ function makeInvitationStream (options) {
       invitation.signature = signature.toString('hex')
       returned.invitation(invitation, function (error) {
         if (error) return log.error(error)
-        log.info({discoveryKey}, 'sent invitation')
+        log.info({ discoveryKey }, 'sent invitation')
       })
     })
   }
@@ -258,7 +258,7 @@ function makeInvitationStream (options) {
   })
 
   returned.on('invalid', function (message) {
-    log.error({message}, 'invalid')
+    log.error({ message }, 'invalid')
   })
 
   returned.handshake(function (error) {
@@ -270,15 +270,15 @@ function makeInvitationStream (options) {
 }
 
 function makeReplicationStream (options) {
-  assert.equal(typeof options, 'object')
-  assert.equal(typeof options.replicationKey, 'string')
-  assert.equal(typeof options.discoveryKey, 'string')
-  assert.equal(typeof options.writeSeed, 'string')
+  assert.strictEqual(typeof options, 'object')
+  assert.strictEqual(typeof options.replicationKey, 'string')
+  assert.strictEqual(typeof options.discoveryKey, 'string')
+  assert.strictEqual(typeof options.writeSeed, 'string')
   assert(options.log)
   var replicationKey = options.replicationKey
   var discoveryKey = options.discoveryKey
   var writeSeed = options.writeSeed
-  var log = options.log.child({discoveryKey})
+  var log = options.log.child({ discoveryKey })
 
   // For each log, track the highest index that we believe our
   // peer has, and use it to avoid sending unnecessary offers.
@@ -318,14 +318,14 @@ function makeReplicationStream (options) {
     })
     data.listProjectPublicKeys(discoveryKey, function (error, publicKeys) {
       if (error) return log.error(error)
-      log.info({publicKeys}, 'public keys')
+      log.info({ publicKeys }, 'public keys')
       publicKeys.forEach(function (publicKey) {
         data.getLastIndex(discoveryKey, publicKey, function (error, index) {
           if (error) return log.error(error)
           if (index === undefined) {
-            return log.error({discoveryKey, publicKey}, 'no envelopes')
+            return log.error({ discoveryKey, publicKey }, 'no envelopes')
           }
-          var reference = {publicKey, index}
+          var reference = { publicKey, index }
           log.info(reference, 'last index')
           sendOffer(reference)
         })
@@ -372,9 +372,9 @@ function makeReplicationStream (options) {
     data.getLastIndex(discoveryKey, publicKey, function (error, last) {
       if (error) return log.error(error)
       if (last === undefined) last = -1
-      log.info({publicKey, last}, 'last index')
+      log.info({ publicKey, last }, 'last index')
       for (var index = last + 1; index <= offeredIndex; index++) {
-        var pair = {publicKey, index}
+        var pair = { publicKey, index }
         log.info(pair, 'sending request')
         returned.request(pair, function (error) {
           if (error) return log.error(error)
@@ -402,7 +402,7 @@ function makeReplicationStream (options) {
   returned.on('envelope', function (envelope) {
     var publicKey = envelope.publicKey
     var index = envelope.message.index
-    var reference = {publicKey, index}
+    var reference = { publicKey, index }
     advancePeerHead(reference)
     log.info(reference, 'received envelope')
     if (envelope.message.project !== discoveryKey) {
@@ -414,7 +414,7 @@ function makeReplicationStream (options) {
         discoveryKey, publicKey,
         function (error) {
           if (error) return log.error(error)
-          log.info({discoveryKey, publicKey}, 'put public key')
+          log.info({ discoveryKey, publicKey }, 'put public key')
         }
       )
     }
@@ -430,7 +430,7 @@ function makeReplicationStream (options) {
   })
 
   returned.on('invalid', function (message) {
-    log.error({message}, 'invalid')
+    log.error({ message }, 'invalid')
   })
 
   return returned

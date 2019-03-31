@@ -10,7 +10,7 @@ module.exports = function (email, port, test, callback) {
     )
   })
   var parsed = url.parse(link)
-  http.request({path: parsed.path, port})
+  http.request({ path: parsed.path, port })
     .once('response', function (response) {
       if (test) {
         test.equal(

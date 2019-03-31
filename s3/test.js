@@ -11,8 +11,8 @@ exports.clear = function () {
 exports.clear()
 
 exports.first = function (prefix, callback) {
-  assert.equal(typeof prefix, 'string')
-  assert.equal(typeof callback, 'function')
+  assert.strictEqual(typeof prefix, 'string')
+  assert.strictEqual(typeof callback, 'function')
   setImmediate(function () {
     var key = Array.from(data.keys())
       .sort()
@@ -24,8 +24,8 @@ exports.first = function (prefix, callback) {
 }
 
 exports.delete = function (key, callback) {
-  assert.equal(typeof key, 'string')
-  assert.equal(typeof callback, 'function')
+  assert.strictEqual(typeof key, 'string')
+  assert.strictEqual(typeof callback, 'function')
   setImmediate(function () {
     data.delete(key)
     callback()
@@ -33,8 +33,8 @@ exports.delete = function (key, callback) {
 }
 
 exports.get = function (key, callback) {
-  assert.equal(typeof key, 'string')
-  assert.equal(typeof callback, 'function')
+  assert.strictEqual(typeof key, 'string')
+  assert.strictEqual(typeof callback, 'function')
   setImmediate(function () {
     if (!data.has(key)) return callback(null, undefined)
     callback(null, data.get(key))
@@ -42,9 +42,9 @@ exports.get = function (key, callback) {
 }
 
 exports.put = function (key, value, callback) {
-  assert.equal(typeof key, 'string')
+  assert.strictEqual(typeof key, 'string')
   assert(value !== undefined)
-  assert.equal(typeof callback, 'function')
+  assert.strictEqual(typeof callback, 'function')
   setImmediate(function () {
     data.set(key, value)
     callback()
@@ -52,8 +52,8 @@ exports.put = function (key, value, callback) {
 }
 
 exports.list = function (prefix, callback) {
-  assert.equal(typeof prefix, 'string')
-  assert.equal(typeof callback, 'function')
+  assert.strictEqual(typeof prefix, 'string')
+  assert.strictEqual(typeof callback, 'function')
   setImmediate(function () {
     var keys = Array.from(data.keys())
       .sort()

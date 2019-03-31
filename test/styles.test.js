@@ -4,7 +4,7 @@ var tape = require('tape')
 
 tape.test('GET /styles.css', function (test) {
   server(function (port, done) {
-    http.request({path: '/styles.css', port: port})
+    http.request({ path: '/styles.css', port: port })
       .once('response', function (response) {
         test.equal(
           response.statusCode, 200,

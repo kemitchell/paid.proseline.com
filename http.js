@@ -22,7 +22,7 @@ var STYLES = fs.readFileSync('styles.css')
 var ajv = new AJV()
 
 module.exports = function (serverLog) {
-  var httpLog = pinoHTTP({logger: serverLog, genReqId: uuid.v4})
+  var httpLog = pinoHTTP({ logger: serverLog, genReqId: uuid.v4 })
   return function (request, response) {
     httpLog(request, response)
     var method = request.method
@@ -122,13 +122,13 @@ function postSubscribe (request, response) {
             stripe.createCustomer(email, token, done)
           },
           function (customerID, done) {
-            request.log.info({customerID}, 'created Stripe customer')
+            request.log.info({ customerID }, 'created Stripe customer')
             newCustomerID = customerID
-            data.putUser(email, {active: false, customerID}, done)
+            data.putUser(email, { active: false, customerID }, done)
           },
           function (done) {
             request.log.info('put user')
-            data.putPublicKey(publicKey, {email, first: true}, done)
+            data.putPublicKey(publicKey, { email, first: true }, done)
           }
         ], function (error) {
           if (error) return serverError(error)
@@ -157,7 +157,7 @@ function postSubscribe (request, response) {
         var capability = randomCapability()
         runSeries([
           function (done) {
-            var object = {type: 'subscribe'}
+            var object = { type: 'subscribe' }
             data.putCapability(email, customerID, capability, object, done)
           },
           function (done) {
@@ -166,7 +166,7 @@ function postSubscribe (request, response) {
           }
         ], function (error) {
           if (error) return serverError(error)
-          response.end(JSON.stringify({message: 'e-mail sent'}))
+          response.end(JSON.stringify({ message: 'e-mail sent' }))
         })
       }
     })
@@ -174,12 +174,12 @@ function postSubscribe (request, response) {
 
   function invalidRequest (response, message) {
     response.statusCode = 400
-    response.end(JSON.stringify({error: message}))
+    response.end(JSON.stringify({ error: message }))
   }
 
   function serverError (error) {
     request.log.error(error)
-    response.end(JSON.stringify({error: 'server error'}))
+    response.end(JSON.stringify({ error: 'server error' }))
   }
 }
 
@@ -278,7 +278,7 @@ function getSubscribe (request, response) {
 function postCancel (request, response) {
   parseBody(function (error, email) {
     if (error) return serverError(error)
-    request.log.info({email}, 'email')
+    request.log.info({ email }, 'email')
     data.getUser(email, function (error, user) {
       /* istanbul ignore if */
       if (error) return serverError(error)
@@ -305,10 +305,10 @@ function postCancel (request, response) {
             ))
           }
           var capability = randomCapability()
-          request.log.info({capability}, 'capability')
+          request.log.info({ capability }, 'capability')
           runSeries([
             function (done) {
-              var object = {type: 'cancel'}
+              var object = { type: 'cancel' }
               data.putCapability(email, customerID, capability, object, done)
             },
             function (done) {
@@ -400,7 +400,7 @@ function finishCancel (request, response) {
     response.statusCode = 400
     return response.end()
   }
-  request.log.info({capability: capabilityString}, 'capability')
+  request.log.info({ capability: capabilityString }, 'capability')
   runWaterfall([
     function getCapability (done) {
       data.getCapability(capabilityString, done)
@@ -458,7 +458,7 @@ function UserError (title, body) {
 function messagePage (subtitle, message) {
   assert(Array.isArray(message))
   message.forEach(function (element) {
-    assert.equal(typeof element, 'string')
+    assert.strictEqual(typeof element, 'string')
   })
   var content = message
     .map(function (string) { return `<p>${string}</p>` })
@@ -531,7 +531,7 @@ function webhook (request, response) {
           response.statusCode = 500
           return response.end()
         }
-        request.log.info({objectID}, 'logged')
+        request.log.info({ objectID }, 'logged')
         response.end()
       })
     })
@@ -584,7 +584,7 @@ function postAdd (request, response) {
           var capability = randomCapability()
           runSeries([
             function (done) {
-              var object = {name, publicKey, type: 'add'}
+              var object = { name, publicKey, type: 'add' }
               data.putCapability(email, customerID, capability, object, done)
             },
             function (done) {
@@ -592,7 +592,7 @@ function postAdd (request, response) {
             }
           ], function (error) {
             if (error) return serverError(error)
-            response.end(JSON.stringify({message: 'e-mail sent'}))
+            response.end(JSON.stringify({ message: 'e-mail sent' }))
           })
         }
       )
@@ -602,12 +602,12 @@ function postAdd (request, response) {
   function invalidRequest (error) {
     response.statusCode = 400
     request.log.error(error)
-    response.end(JSON.stringify({error}))
+    response.end(JSON.stringify({ error }))
   }
 
   function serverError (error) {
     request.log.error(error)
-    response.end(JSON.stringify({error: 'server error'}))
+    response.end(JSON.stringify({ error: 'server error' }))
   }
 }
 
@@ -634,7 +634,7 @@ function getAdd (request, response) {
         data.deleteCapability(capability, done)
       }, 'deleted capability'),
       logSuccess(function (done) {
-        data.putPublicKey(publicKey, {email, name}, done)
+        data.putPublicKey(publicKey, { email, name }, done)
       }, 'added key')
     ], function (error) {
       if (error) return serverError(error)
@@ -661,7 +661,7 @@ function getAdd (request, response) {
   }
 
   function invalidRequest (message) {
-    response.end(JSON.stringify({error: message}))
+    response.end(JSON.stringify({ error: message }))
   }
 
   function serverError (error) {

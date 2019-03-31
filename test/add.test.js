@@ -10,7 +10,7 @@ var tape = require('tape')
 tape('POST /add', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
-    subscribe({email, port}, function (message) {
+    subscribe({ email, port }, function (message) {
       confirmSubscribe(message, port, null, function () {
         add(email, port, test, function () {
           test.end()
@@ -24,7 +24,7 @@ tape('POST /add', function (test) {
 tape('GET /add', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
-    subscribe({email, port}, function (subscribeMessage) {
+    subscribe({ email, port }, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, test, function () {
         add(email, port, null, function (addMessage) {
           confirmAdd(addMessage, port, test, function () {
@@ -39,7 +39,7 @@ tape('GET /add', function (test) {
 
 tape('PUT /add', function (test) {
   server(function (port, done) {
-    http.request({path: '/add', method: 'PUT', port})
+    http.request({ path: '/add', method: 'PUT', port })
       .once('response', function (response) {
         test.equal(
           response.statusCode, 405,
@@ -91,7 +91,7 @@ tape('POST /add with invalid body', function (test) {
           test.ifError(error, 'no error')
           test.equal(
             buffer.toString(),
-            JSON.stringify({error: 'invalid add'}),
+            JSON.stringify({ error: 'invalid add' }),
             'invalid add message'
           )
           test.end()

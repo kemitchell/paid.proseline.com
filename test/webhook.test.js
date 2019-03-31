@@ -9,7 +9,7 @@ tape('POST /webhook', function (test) {
       method: 'POST',
       path: '/webhook',
       port,
-      headers: {'Stripe-Signature': constants.VALID_STRIPE_SIGNATURE}
+      headers: { 'Stripe-Signature': constants.VALID_STRIPE_SIGNATURE }
     })
       .once('response', function (response) {
         test.equal(
@@ -29,7 +29,7 @@ tape('POST /webhook with invalid JSON', function (test) {
       method: 'POST',
       path: '/webhook',
       port,
-      headers: {'Stripe-Signature': constants.VALID_STRIPE_SIGNATURE}
+      headers: { 'Stripe-Signature': constants.VALID_STRIPE_SIGNATURE }
     })
       .once('response', function (response) {
         test.equal(
@@ -49,7 +49,7 @@ tape('POST /webhook with non-object', function (test) {
       method: 'POST',
       path: '/webhook',
       port,
-      headers: {'Stripe-Signature': constants.VALID_STRIPE_SIGNATURE}
+      headers: { 'Stripe-Signature': constants.VALID_STRIPE_SIGNATURE }
     })
       .once('response', function (response) {
         test.equal(
@@ -69,7 +69,7 @@ tape('POST /webhook with invalid signature', function (test) {
       method: 'POST',
       path: '/webhook',
       port,
-      headers: {'Stripe-Signature': 'invalid'}
+      headers: { 'Stripe-Signature': 'invalid' }
     })
       .once('response', function (response) {
         test.equal(

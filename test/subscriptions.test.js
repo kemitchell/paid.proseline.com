@@ -13,7 +13,7 @@ var tape = require('tape')
 
 tape('POST /subscribe', function (test) {
   server(function (port, done) {
-    subscribe({email: 'test@example.com', port, test}, function () {
+    subscribe({ email: 'test@example.com', port, test }, function () {
       test.end()
       done()
     })
@@ -125,7 +125,7 @@ tape('POST /subscribe with expired order', function (test) {
 
 tape('GET /subscribe', function (test) {
   server(function (port, done) {
-    subscribe({email: 'test@example.com', port}, function (email) {
+    subscribe({ email: 'test@example.com', port }, function (email) {
       confirmSubscribe(email, port, test, function () {
         test.end()
         done()
@@ -136,7 +136,7 @@ tape('GET /subscribe', function (test) {
 
 tape('PUT /subscribe', function (test) {
   server(function (port, done) {
-    http.request({path: '/subscribe', method: 'PUT', port})
+    http.request({ path: '/subscribe', method: 'PUT', port })
       .once('response', function (response) {
         test.equal(
           response.statusCode, 405,
@@ -152,7 +152,7 @@ tape('PUT /subscribe', function (test) {
 tape('POST /cancel', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
-    subscribe({email, port}, function (subscribeMessage) {
+    subscribe({ email, port }, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, null, function () {
         cancel(email, port, test, function () {
           test.end()
@@ -203,7 +203,7 @@ tape('POST /cancel', function (test) {
 tape('POST /cancel', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
-    subscribe({email, port}, function (subscribeMessage) {
+    subscribe({ email, port }, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, null, function () {
         cancel(email, port, null, function (cancelMessage) {
           confirmCancel(cancelMessage, port, null, function () {
@@ -248,7 +248,7 @@ tape('POST /cancel', function (test) {
 tape('GET /cancel', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
-    subscribe({email, port}, function (subscribeMessage) {
+    subscribe({ email, port }, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, null, function () {
         cancel(email, port, null, function (cancelMessage) {
           confirmCancel(cancelMessage, port, test, function () {
@@ -263,7 +263,7 @@ tape('GET /cancel', function (test) {
 
 tape('GET /cancel without capability', function (test) {
   server(function (port, done) {
-    http.request({path: '/cancel', port})
+    http.request({ path: '/cancel', port })
       .once('response', function (response) {
         test.equal(
           response.statusCode, 200,
@@ -291,7 +291,7 @@ tape('GET /cancel without capability', function (test) {
 
 tape('PUT /cancel', function (test) {
   server(function (port, done) {
-    http.request({path: '/cancel', method: 'PUT', port})
+    http.request({ path: '/cancel', method: 'PUT', port })
       .once('response', function (response) {
         test.equal(
           response.statusCode, 405,
@@ -307,7 +307,7 @@ tape('PUT /cancel', function (test) {
 tape('POST /subscribe after subscribing', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
-    subscribe({email, port}, function (subscribeMessage) {
+    subscribe({ email, port }, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, null, function () {
         var keyPair = makeKeyPair()
         var message = {
@@ -342,11 +342,11 @@ tape('POST /subscribe after subscribing', function (test) {
 tape('Resubscribe', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
-    subscribe({email, port}, function (subscribeMessage) {
+    subscribe({ email, port }, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, null, function () {
         cancel(email, port, null, function (cancelMessage) {
           confirmCancel(cancelMessage, port, null, function () {
-            subscribe({email, port, test}, function (subscribeMessage) {
+            subscribe({ email, port, test }, function (subscribeMessage) {
               test.end()
               done()
             })
@@ -359,7 +359,7 @@ tape('Resubscribe', function (test) {
 
 tape('GET /subscribe without capability', function (test) {
   server(function (port, done) {
-    http.request({path: '/subscribe', port})
+    http.request({ path: '/subscribe', port })
       .once('response', function (response) {
         test.equal(
           response.statusCode, 400,
@@ -429,7 +429,7 @@ tape('GET /cancel with invalid capability', function (test) {
 tape('GET /subscribe with cancel capability', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
-    subscribe({email, port}, function (subscribeMessage) {
+    subscribe({ email, port }, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, null, function () {
         cancel(email, port, null, function (cancelMessage) {
           var link = cancelMessage.paragraphs.find(function (paragraph) {

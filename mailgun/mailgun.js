@@ -3,7 +3,7 @@ var https = require('https')
 var simpleConcat = require('simple-concat')
 
 module.exports = function (requestLog, options, callback) {
-  var log = requestLog.child({subsystem: 'email'})
+  var log = requestLog.child({ subsystem: 'email' })
   var form = new FormData()
   form.append('from', process.env.MAILGUN_FROM)
   form.append('to', options.to)

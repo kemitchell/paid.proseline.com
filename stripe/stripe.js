@@ -20,47 +20,47 @@ module.exports = {
 }
 
 function createCustomer (email, source, callback) {
-  assert.equal(typeof email, 'string')
-  assert.equal(typeof source, 'string')
-  assert.equal(typeof callback, 'function')
+  assert.strictEqual(typeof email, 'string')
+  assert.strictEqual(typeof source, 'string')
+  assert.strictEqual(typeof callback, 'function')
   client
     .customers
-    .create({email, source}, function (error, customer) {
+    .create({ email, source }, function (error, customer) {
       if (error) return callback(error)
       callback(null, customer.id)
     })
 }
 
 function getCustomer (customerID, callback) {
-  assert.equal(typeof customerID, 'string')
-  assert.equal(typeof callback, 'function')
+  assert.strictEqual(typeof customerID, 'string')
+  assert.strictEqual(typeof callback, 'function')
   client
     .customers
     .retrieve(customerID, callback)
 }
 
 function subscribe (customerID, callback) {
-  assert.equal(typeof customerID, 'string')
-  assert.equal(typeof callback, 'function')
+  assert.strictEqual(typeof customerID, 'string')
+  assert.strictEqual(typeof callback, 'function')
   client
     .subscriptions
     .create({
       customer: customerID,
-      items: [{plan: PLAN}]
+      items: [{ plan: PLAN }]
     }, callback)
 }
 
 function unsubscribe (subscriptionID, callback) {
-  assert.equal(typeof subscriptionID, 'string')
-  assert.equal(typeof callback, 'function')
+  assert.strictEqual(typeof subscriptionID, 'string')
+  assert.strictEqual(typeof callback, 'function')
   client
     .subscriptions
     .del(subscriptionID, callback)
 }
 
 function getActiveSubscription (customerID, callback) {
-  assert.equal(typeof customerID, 'string')
-  assert.equal(typeof callback, 'function')
+  assert.strictEqual(typeof customerID, 'string')
+  assert.strictEqual(typeof callback, 'function')
   getCustomer(customerID, function (error, customer) {
     if (error) return callback(error)
     var subscriptions = customer.subscriptions.data
@@ -79,7 +79,7 @@ function getActiveSubscription (customerID, callback) {
 }
 
 function validSignature (request, body) {
-  assert.equal(typeof request, 'object')
+  assert.strictEqual(typeof request, 'object')
   assert(Buffer.isBuffer(body))
   try {
     client

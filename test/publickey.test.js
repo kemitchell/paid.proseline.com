@@ -5,7 +5,7 @@ var tape = require('tape')
 
 tape.test('GET /publickey', function (test) {
   server(function (port, done) {
-    http.request({path: '/publickey', port})
+    http.request({ path: '/publickey', port })
       .once('response', function (response) {
         test.equal(
           response.statusCode, 200,

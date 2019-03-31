@@ -30,7 +30,7 @@ tape.test('Invitations', function (test) {
   server(function (port, done) {
     var keyPair = makeKeyPair()
     var email = 'test@example.com'
-    subscribe({keyPair, email, port}, function (subscribeMessage) {
+    subscribe({ keyPair, email, port }, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, null, function () {
         var replicationKey = makeRandom(32)
         var writeSeed = makeRandom(32)
@@ -95,7 +95,7 @@ function makeInvitationProtocol (plex) {
 }
 
 function makeInvitationRequest (email, keyPair) {
-  return makeMessage(keyPair, {date: new Date().toISOString(), email})
+  return makeMessage(keyPair, { date: new Date().toISOString(), email })
 }
 
 function makeInvitation (keyPair, options) {
@@ -187,7 +187,7 @@ tape('Replication', function (test) {
     })
 
     function createSubscription (done) {
-      subscribe({keyPair, email, port}, function (subscribeMessage) {
+      subscribe({ keyPair, email, port }, function (subscribeMessage) {
         confirmSubscribe(subscribeMessage, port, null, done)
       })
     }
@@ -196,7 +196,7 @@ tape('Replication', function (test) {
       var firstWS = makeWebsocket(port)
       var plex = multiplex()
       var invitation = makeInvitationProtocol(plex)
-      var invite = makeInvitation(keyPair, {replicationKey, writeSeed, title})
+      var invite = makeInvitation(keyPair, { replicationKey, writeSeed, title })
       invitation.invitation(invite, function (error) {
         test.ifError(error, 'no send invitation error')
         setTimeout(function () {
@@ -211,7 +211,7 @@ tape('Replication', function (test) {
             test.ifError(error, 'no error sending handshake')
           })
           replication.once('handshake', function () {
-            replication.offer({publicKey, index}, function (error) {
+            replication.offer({ publicKey, index }, function (error) {
               test.ifError(error, 'no error offering to server')
             })
             replication.once('request', function (request) {
@@ -288,7 +288,7 @@ function connect (a, b) {
   a.pipe(b).pipe(a)
 }
 
-var wsOptions = {perMessageDeflate: false}
+var wsOptions = { perMessageDeflate: false }
 
 function makeWebsocket (port) {
   return websocketStream('ws://localhost:' + port, wsOptions)
@@ -298,7 +298,7 @@ function keyPairFromSeed (seed) {
   var publicKey = Buffer.alloc(sodium.crypto_sign_PUBLICKEYBYTES)
   var secretKey = Buffer.alloc(sodium.crypto_sign_SECRETKEYBYTES)
   sodium.crypto_sign_seed_keypair(publicKey, secretKey, seed)
-  return {secretKey, publicKey}
+  return { secretKey, publicKey }
 }
 
 function makeReplicationProtocol (options) {
@@ -375,7 +375,7 @@ tape('invitations across websockets', function (test) {
     ])
 
     function createSubscription (done) {
-      subscribe({keyPair, email, port}, function (message) {
+      subscribe({ keyPair, email, port }, function (message) {
         confirmSubscribe(message, port, null, done)
       })
     }
@@ -436,7 +436,7 @@ tape('invitations across websockets', function (test) {
       var plex = multiplex()
       connect(plex, ws)
       var invitation = makeInvitationProtocol(plex)
-      var invite = makeInvitation(keyPair, {replicationKey, writeSeed, title})
+      var invite = makeInvitation(keyPair, { replicationKey, writeSeed, title })
       invitation.invitation(invite, function (error) {
         test.ifError(error, 'no send invitation error')
         test.pass('sent invitation')
@@ -499,7 +499,7 @@ tape('envelopes across sockets', function (test) {
     }
 
     function createSubscription (done) {
-      subscribe({keyPair, email, port}, function (subscribeMessage) {
+      subscribe({ keyPair, email, port }, function (subscribeMessage) {
         confirmSubscribe(subscribeMessage, port, null, done)
       })
     }
@@ -508,7 +508,7 @@ tape('envelopes across sockets', function (test) {
       var ws = makeWebsocket(port)
       var plex = multiplex()
       var invitation = makeInvitationProtocol(plex)
-      var invite = makeInvitation(keyPair, {replicationKey, writeSeed, title})
+      var invite = makeInvitation(keyPair, { replicationKey, writeSeed, title })
       invitation.invitation(invite, function (error) {
         test.ifError(error, 'no send invitation error')
         setTimeout(function () {
@@ -556,7 +556,7 @@ tape('envelopes across sockets', function (test) {
         test.ifError(error, 'no error sending handshake')
       })
       replication.once('handshake', function () {
-        replication.offer({publicKey, index}, function (error) {
+        replication.offer({ publicKey, index }, function (error) {
           test.ifError(error, 'no error offering to server')
         })
         replication.once('request', function (request) {

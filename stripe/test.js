@@ -14,7 +14,7 @@ exports.createCustomer = function (email, source, callback) {
       return callback(new Error('invalid source'))
     }
     var customerID = nextCustomerID()
-    customers.set(customerID, {email, customerID})
+    customers.set(customerID, { email, customerID })
     callback(null, customerID)
   })
 }
@@ -70,7 +70,7 @@ exports.getActiveSubscription = function (customerID, callback) {
       return callback(new Error('no such customer'))
     }
     var customer = customers.get(customerID)
-    callback(null, customer.subscriptionID ? {id: customer.subscriptionID} : null)
+    callback(null, customer.subscriptionID ? { id: customer.subscriptionID } : null)
   })
 }
 

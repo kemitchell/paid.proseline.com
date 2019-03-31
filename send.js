@@ -4,10 +4,10 @@ var mailgun = require('./mailgun')
 exports.subscribe = function (
   requestLog, email, capability, callback
 ) {
-  assert.equal(typeof requestLog, 'object')
-  assert.equal(typeof email, 'string')
-  assert.equal(typeof capability, 'string')
-  assert.equal(typeof callback, 'function')
+  assert.strictEqual(typeof requestLog, 'object')
+  assert.strictEqual(typeof email, 'string')
+  assert.strictEqual(typeof capability, 'string')
+  assert.strictEqual(typeof callback, 'function')
   mailgun(requestLog, {
     to: email,
     subject: 'Confirm Your Proseline Subscription',
@@ -21,11 +21,11 @@ exports.subscribe = function (
 exports.add = function (
   requestLog, email, name, capability, callback
 ) {
-  assert.equal(typeof requestLog, 'object')
-  assert.equal(typeof email, 'string')
-  assert.equal(typeof name, 'string')
-  assert.equal(typeof capability, 'string')
-  assert.equal(typeof callback, 'function')
+  assert.strictEqual(typeof requestLog, 'object')
+  assert.strictEqual(typeof email, 'string')
+  assert.strictEqual(typeof name, 'string')
+  assert.strictEqual(typeof capability, 'string')
+  assert.strictEqual(typeof callback, 'function')
   mailgun(requestLog, {
     to: email,
     subject: 'Add a New Device to Your Proseline Subscription',
@@ -40,10 +40,10 @@ exports.add = function (
 exports.cancel = function (
   requestLog, email, capability, callback
 ) {
-  assert.equal(typeof requestLog, 'object')
-  assert.equal(typeof email, 'string')
-  assert.equal(typeof capability, 'string')
-  assert.equal(typeof callback, 'function')
+  assert.strictEqual(typeof requestLog, 'object')
+  assert.strictEqual(typeof email, 'string')
+  assert.strictEqual(typeof capability, 'string')
+  assert.strictEqual(typeof callback, 'function')
   mailgun(requestLog, {
     to: email,
     subject: 'Cancel Your Proseline Subscription',

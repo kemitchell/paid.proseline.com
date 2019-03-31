@@ -35,7 +35,7 @@ module.exports = function (options, callback) {
     }
     callback(message)
   })
-  http.request({path: '/subscribe', method: 'POST', port})
+  http.request({ path: '/subscribe', method: 'POST', port })
     .once('response', function (response) {
       if (test) {
         test.equal(
@@ -46,7 +46,7 @@ module.exports = function (options, callback) {
           var body = buffer.toString()
           test.ifError(error, 'no error')
           test.equal(
-            body, JSON.stringify({message: 'e-mail sent'}),
+            body, JSON.stringify({ message: 'e-mail sent' }),
             'e-mail sent message'
           )
         })
