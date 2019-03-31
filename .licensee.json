@@ -1,6 +1,12 @@
 {
-  "license": "(MIT OR BSD-2-Clause OR BSD-3-Clause OR ISC OR Apache-2.0 OR WTFPL OR Unlicense OR CC0-1.0 OR CC-BY-3.0)",
-  "whitelist": {
+  "licenses": {
+    "spdx": [
+      "CC-BY-3.0",
+      "WTFPL"
+    ],
+    "blueOak": "bronze"
+  },
+  "packages": {
     "@fortawesome/fontawesome-common-types": "0.1.7",
     "@fortawesome/fontawesome-free-regular": "5.0.13",
     "@fortawesome/fontawesome-free-solid": "5.0.13",
