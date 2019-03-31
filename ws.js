@@ -325,9 +325,8 @@ function makeReplicationStream (options) {
           if (index === undefined) {
             return log.error({ discoveryKey, publicKey }, 'no envelopes')
           }
-          var reference = { publicKey, index }
-          log.info(reference, 'last index')
-          sendOffer(reference)
+          log.info({ publicKey, index }, 'last index')
+          sendOffer({ publicKey, index })
         })
       })
     })
@@ -374,8 +373,8 @@ function makeReplicationStream (options) {
       if (last === undefined) last = -1
       log.info({ publicKey, last }, 'last index')
       for (var index = last + 1; index <= offeredIndex; index++) {
+        log.info({ publicKey, index }, 'sending request')
         var pair = { publicKey, index }
-        log.info(pair, 'sending request')
         returned.request(pair, function (error) {
           if (error) return log.error(error)
           log.info(pair, 'sent request')
@@ -385,16 +384,22 @@ function makeReplicationStream (options) {
   })
 
   function onEnvelopeEvent (reference) {
-    log.info(reference, 'envelope event')
+    log.info({}, reference, 'envelope event')
     sendOffer(reference)
   }
 
   function sendOffer (reference) {
     if (!shouldSend(reference)) return
-    log.info(reference, 'sending offer')
+    log.info({
+      publicKey: reference.publicKey,
+      index: reference.index
+    }, 'sending offer')
     returned.offer(reference, function (error) {
       if (error) return log.error(error)
-      log.info(reference, 'sent offer')
+      log.info({
+        publicKey: reference.publicKey,
+        index: reference.index
+      }, 'sent offer')
     })
   }
 
@@ -402,13 +407,12 @@ function makeReplicationStream (options) {
   returned.on('envelope', function (envelope) {
     var publicKey = envelope.publicKey
     var index = envelope.message.index
-    var reference = { publicKey, index }
-    advancePeerHead(reference)
-    log.info(reference, 'received envelope')
+    log.info({ publicKey, index }, 'received envelope')
+    advancePeerHead({ publicKey, index })
     if (envelope.message.project !== discoveryKey) {
-      return log.error(reference, 'project mismatch')
+      return log.error({ publicKey, index }, 'project mismatch')
     }
-    log.info(reference, 'putting envelope')
+    log.info({ publicKey, index }, 'putting envelope')
     if (index === 0) {
       data.putProjectPublicKey(
         discoveryKey, publicKey,
@@ -420,8 +424,8 @@ function makeReplicationStream (options) {
     }
     data.putEnvelope(envelope, function (error) {
       if (error) return log.error(error)
-      log.info(reference, 'put envelope')
-      events.emit(`project:${discoveryKey}`, reference)
+      log.info({ publicKey, index }, 'put envelope')
+      events.emit(`project:${discoveryKey}`, { publicKey, index })
     })
   })
 
