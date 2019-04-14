@@ -36,7 +36,7 @@
   "scripts": {
     "coverage": "NODE_ENV=test istanbul cover -- tape test/*.test.js",
     "postcoverage": "istanbul check-coverage coverage/coverage.json",
-    "deps": "depcheck --ignores standard,licensee,husky,lint-staged",
+    "deps": "depcheck --ignores standard,licensee,husky,lint-staged,reformat-json-files",
     "lint": "standard",
     "licenses": "licensee --errors-only",
     "test": "NODE_ENV=test tape test/*.test.js"
