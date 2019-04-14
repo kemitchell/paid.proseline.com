@@ -79,6 +79,10 @@ function homepage (request, response) {
 
 var validOrder = ajv.compile(require('./schemas/order'))
 
+// POST /subscribe
+// Sign up for a subscription.
+// Inputs: publicKey, signature, token, email, date
+// Side Effects: send confirm subscription capability via e-mail
 function postSubscribe (request, response) {
   runWaterfall([
     function (done) {
@@ -219,6 +223,10 @@ function notFound (request, response) {
   ))
 }
 
+// GET /subscribe
+// Confirm a new subscription.
+// Inputs: capability
+// Side Effect: confirm subscription
 function getSubscribe (request, response) {
   var capability = request.query.capability
   if (!capability || !validCapability(capability)) {
@@ -540,6 +548,10 @@ function webhook (request, response) {
 
 var validAdd = ajv.compile(require('./schemas/add'))
 
+// POST /add
+// Add a public key to a subscription.
+// Inputs: publicKey, signature, name, email, date
+// Side Effect: send add confirmation capability via e-mail
 function postAdd (request, response) {
   runWaterfall([
     function (done) {
@@ -611,6 +623,10 @@ function postAdd (request, response) {
   }
 }
 
+// GET /add
+// Confirm addition of a new public key to a subscription.
+// Inputs: capability
+// Side Effect: confirm addition of public key
 function getAdd (request, response) {
   var capability = request.query.capability
   if (!capability || !validCapability(capability)) {
