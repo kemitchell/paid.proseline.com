@@ -4,6 +4,7 @@ var assert = require('assert')
 var concatLimit = require('./concat-limit')
 var data = require('./data')
 var fs = require('fs')
+var keyserverProtocol = require('./keyserver-protocol')
 var parse = require('json-parse-errback')
 var pinoHTTP = require('pino-http')
 var runSeries = require('run-series')
@@ -38,6 +39,10 @@ module.exports = function (serverLog) {
     if (pathname === '/add') {
       if (method === 'POST') return postAdd(request, response)
       if (method === 'GET') return getAdd(request, response)
+      return respond405(request, response)
+    }
+    if (pathname === '/encryptionkey') {
+      if (method === 'POST') return requestEncryptionKey(request, response)
       return respond405(request, response)
     }
     if (pathname === '/cancel') {
@@ -86,7 +91,7 @@ var validOrder = ajv.compile(require('./schemas/order'))
 function postSubscribe (request, response) {
   runWaterfall([
     function (done) {
-      concatLimit(request, 512, done)
+      concatLimit(request, 1024, done)
     },
     parse
   ], function (error, order) {
@@ -112,6 +117,12 @@ function postSubscribe (request, response) {
     request.log.info('unexpired')
     var email = order.message.email
     var token = order.message.token
+    var authenticationToken = Buffer.from(
+      order.message.authenticationToken, 'hex'
+    )
+    var clientStretchedPassword = Buffer.from(
+      order.message.clientStretchedPassword, 'hex'
+    )
     var publicKey = order.publicKey
     data.getUser(email, function (error, user) {
       /* istanbul ignore if */
@@ -128,7 +139,16 @@ function postSubscribe (request, response) {
           function (customerID, done) {
             request.log.info({ customerID }, 'created Stripe customer')
             newCustomerID = customerID
-            data.putUser(email, { active: false, customerID }, done)
+            var user = keyserverProtocol.server.register({
+              authenticationToken,
+              clientStretchedPassword
+            })
+            Object.keys(user).forEach(function (key) {
+              user[key] = user[key].toString('hex')
+            })
+            user.customerID = customerID
+            user.active = false
+            data.putUser(email, user, done)
           },
           function (done) {
             request.log.info('put user')
@@ -555,7 +575,7 @@ var validAdd = ajv.compile(require('./schemas/add'))
 function postAdd (request, response) {
   runWaterfall([
     function (done) {
-      concatLimit(request, 512, done)
+      concatLimit(request, 1024, done)
     },
     parse
   ], function (error, add) {
@@ -685,5 +705,85 @@ function getAdd (request, response) {
     response.statusCode = 500
     response.setHeader('Content-Type', 'text/html')
     response.end(serverErrorPage())
+  }
+}
+
+var validRequest = ajv.compile(require('./schemas/request'))
+
+// POST /encryptionkey
+function requestEncryptionKey (request, response) {
+  runWaterfall([
+    function (done) {
+      concatLimit(request, 512, done)
+    },
+    parse
+  ], function (error, body) {
+    if (error) {
+      /* istanbul ignore else */
+      if (error.limit) {
+        // TODO: Double check stream calls for 413.
+        response.statusCode = 413
+        return response.end()
+      } else return serverError(error)
+    }
+    if (!validRequest(body)) {
+      return invalidRequest('invalid request')
+    }
+    request.log.info('valid request')
+    if (!validSignature(body)) {
+      return invalidRequest('invalid signature')
+    }
+    request.log.info('valid signature')
+    if (!unexpired(body)) {
+      return invalidRequest('request expired')
+    }
+    request.log.info('unexpired')
+    var email = body.message.email
+    var authenticationToken = Buffer.from(
+      body.message.authenticationToken, 'hex'
+    )
+    // TODO: Deduplicate get-user logic.
+    data.getUser(email, function (error, user) {
+      /* istanbul ignore if */
+      if (error) return serverError(error)
+      if (!user) return invalidRequest('no user with that e-mail')
+      var customerID = user.customerID
+      stripe.getActiveSubscription(
+        customerID,
+        function (error, subscription) {
+          /* istanbul ignore if */
+          if (error) return serverError(error)
+          if (!subscription) return invalidRequest('no active subscription')
+          var authenticationSalt = Buffer.from(
+            user.authenticationSalt, 'hex'
+          )
+          var verificationHash = Buffer.from(
+            user.verificationHash, 'hex'
+          )
+          var result = keyserverProtocol.server.login({
+            authenticationToken,
+            authenticationSalt,
+            verificationHash
+          })
+          if (!result) return invalidRequest('invalid')
+          response.end(JSON.stringify({
+            serverWrappedKey: user.serverWrappedKey
+          }))
+        }
+      )
+    })
+  })
+
+  // TODO: Deduplicate invalidRequest definitions.
+  function invalidRequest (message) {
+    response.statusCode = 400
+    response.end(JSON.stringify({ error: message }))
+  }
+
+  // TODO: Deduplicate serverError definitions.
+  function serverError (error) {
+    request.log.error(error)
+    response.statusCode = 500
+    response.end(JSON.stringify({ error: 'server error' }))
   }
 }

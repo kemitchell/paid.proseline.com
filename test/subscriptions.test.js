@@ -13,7 +13,9 @@ var tape = require('tape')
 
 tape('POST /subscribe', function (test) {
   server(function (port, done) {
-    subscribe({ email: 'test@example.com', port, test }, function () {
+    var email = 'test@example.com'
+    var password = 'a terrible password'
+    subscribe({ email, password, port, test }, function () {
       test.end()
       done()
     })
@@ -125,7 +127,9 @@ tape('POST /subscribe with expired order', function (test) {
 
 tape('GET /subscribe', function (test) {
   server(function (port, done) {
-    subscribe({ email: 'test@example.com', port }, function (email) {
+    var email = 'test@example.com'
+    var password = 'a terrible password'
+    subscribe({ email, password, port }, function (email) {
       confirmSubscribe(email, port, test, function () {
         test.end()
         done()
@@ -152,7 +156,8 @@ tape('PUT /subscribe', function (test) {
 tape('POST /cancel', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
-    subscribe({ email, port }, function (subscribeMessage) {
+    var password = 'a terrible password'
+    subscribe({ email, password, port }, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, null, function () {
         cancel(email, port, test, function () {
           test.end()
@@ -203,7 +208,8 @@ tape('POST /cancel', function (test) {
 tape('POST /cancel', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
-    subscribe({ email, port }, function (subscribeMessage) {
+    var password = 'a terrible password'
+    subscribe({ email, password, port }, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, null, function () {
         cancel(email, port, null, function (cancelMessage) {
           confirmCancel(cancelMessage, port, null, function () {
@@ -248,7 +254,8 @@ tape('POST /cancel', function (test) {
 tape('GET /cancel', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
-    subscribe({ email, port }, function (subscribeMessage) {
+    var password = 'a terrible password'
+    subscribe({ email, password, port }, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, null, function () {
         cancel(email, port, null, function (cancelMessage) {
           confirmCancel(cancelMessage, port, test, function () {
@@ -307,7 +314,8 @@ tape('PUT /cancel', function (test) {
 tape('POST /subscribe after subscribing', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
-    subscribe({ email, port }, function (subscribeMessage) {
+    var password = 'a terrible password'
+    subscribe({ email, password, port }, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, null, function () {
         var keyPair = makeKeyPair()
         var message = {
@@ -342,11 +350,12 @@ tape('POST /subscribe after subscribing', function (test) {
 tape('Resubscribe', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
-    subscribe({ email, port }, function (subscribeMessage) {
+    var password = 'a terrible password'
+    subscribe({ email, password, port }, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, null, function () {
         cancel(email, port, null, function (cancelMessage) {
           confirmCancel(cancelMessage, port, null, function () {
-            subscribe({ email, port, test }, function (subscribeMessage) {
+            subscribe({ email, password, port, test }, function (subscribeMessage) {
               test.end()
               done()
             })
@@ -429,7 +438,8 @@ tape('GET /cancel with invalid capability', function (test) {
 tape('GET /subscribe with cancel capability', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
-    subscribe({ email, port }, function (subscribeMessage) {
+    var password = 'a terrible password'
+    subscribe({ email, password, port }, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, null, function () {
         cancel(email, port, null, function (cancelMessage) {
           var link = cancelMessage.paragraphs.find(function (paragraph) {

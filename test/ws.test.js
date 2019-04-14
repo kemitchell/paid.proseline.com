@@ -30,7 +30,8 @@ tape.test('Invitations', function (test) {
   server(function (port, done) {
     var keyPair = makeKeyPair()
     var email = 'test@example.com'
-    subscribe({ keyPair, email, port }, function (subscribeMessage) {
+    var password = 'a terrible password'
+    subscribe({ keyPair, password, email, port }, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, null, function () {
         var replicationKey = makeRandom(32)
         var writeSeed = makeRandom(32)
@@ -149,6 +150,7 @@ tape('Replication', function (test) {
     // User
     var keyPair = makeKeyPair()
     var email = 'test@example.com'
+    var password = 'a terrible password'
 
     // Project
     var replicationKey = makeRandom(32)
@@ -187,7 +189,7 @@ tape('Replication', function (test) {
     })
 
     function createSubscription (done) {
-      subscribe({ keyPair, email, port }, function (subscribeMessage) {
+      subscribe({ keyPair, email, password, port }, function (subscribeMessage) {
         confirmSubscribe(subscribeMessage, port, null, done)
       })
     }
@@ -354,6 +356,7 @@ tape('invitations across websockets', function (test) {
   server(function (port, done) {
     // User
     var email = 'test@example.com'
+    var password = 'a terrible password'
     var keyPair = makeKeyPair()
     var title = 'test project'
 
@@ -375,7 +378,7 @@ tape('invitations across websockets', function (test) {
     ])
 
     function createSubscription (done) {
-      subscribe({ keyPair, email, port }, function (message) {
+      subscribe({ keyPair, email, password, port }, function (message) {
         confirmSubscribe(message, port, null, done)
       })
     }
@@ -459,6 +462,7 @@ tape('envelopes across sockets', function (test) {
     // User
     var keyPair = makeKeyPair()
     var email = 'test@example.com'
+    var password = 'a terrible password'
 
     // Project
     var replicationKey = makeRandom(32)
@@ -499,7 +503,7 @@ tape('envelopes across sockets', function (test) {
     }
 
     function createSubscription (done) {
-      subscribe({ keyPair, email, port }, function (subscribeMessage) {
+      subscribe({ keyPair, email, password, port }, function (subscribeMessage) {
         confirmSubscribe(subscribeMessage, port, null, done)
       })
     }

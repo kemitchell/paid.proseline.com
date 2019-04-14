@@ -1,47 +1,33 @@
-var add = require('./add')
 var concat = require('simple-concat')
-var confirmAdd = require('./confirm-add')
 var confirmSubscribe = require('./confirm-subscribe')
 var http = require('http')
+var requestEncryptionKey = require('./request-encryption-key')
 var server = require('./server')
 var subscribe = require('./subscribe')
 var tape = require('tape')
 
-tape('POST /add', function (test) {
+tape('POST /encryptionkey', function (test) {
   server(function (port, done) {
     var email = 'test@example.com'
     var password = 'a terrible password'
     subscribe({ email, password, port }, function (message) {
       confirmSubscribe(message, port, null, function () {
-        add(email, port, test, function () {
-          test.end()
-          done()
-        })
-      })
-    })
-  })
-})
-
-tape('GET /add', function (test) {
-  server(function (port, done) {
-    var email = 'test@example.com'
-    var password = 'a terrible password'
-    subscribe({ email, password, port }, function (subscribeMessage) {
-      confirmSubscribe(subscribeMessage, port, test, function () {
-        add(email, port, null, function (addMessage) {
-          confirmAdd(addMessage, port, test, function () {
+        requestEncryptionKey(
+          email, password, port, test,
+          function (error, result) {
+            test.ifError(error)
             test.end()
             done()
-          })
-        })
+          }
+        )
       })
     })
   })
 })
 
-tape('PUT /add', function (test) {
+tape('GET /encryptionkey', function (test) {
   server(function (port, done) {
-    http.request({ path: '/add', method: 'PUT', port })
+    http.request({ path: '/encryptionkey', method: 'GET', port })
       .once('response', function (response) {
         test.equal(
           response.statusCode, 405,
@@ -54,11 +40,26 @@ tape('PUT /add', function (test) {
   })
 })
 
-tape('POST /add with huge body', function (test) {
+tape('PUT /encryptionkey', function (test) {
+  server(function (port, done) {
+    http.request({ path: '/encryptionkey', method: 'PUT', port })
+      .once('response', function (response) {
+        test.equal(
+          response.statusCode, 405,
+          'responds 405'
+        )
+        test.end()
+        done()
+      })
+      .end()
+  })
+})
+
+tape('POST /encryptionkey with huge body', function (test) {
   server(function (port, done) {
     var request = http.request({
       method: 'POST',
-      path: '/add',
+      path: '/encryptionkey',
       port
     })
       .once('response', function (response) {
@@ -69,7 +70,7 @@ tape('POST /add with huge body', function (test) {
         test.end()
         done()
       })
-    var buffer = Buffer.alloc(512)
+    var buffer = Buffer.alloc(2048)
     for (var i = 0; i < 100; i++) {
       request.write(buffer)
     }
@@ -77,11 +78,11 @@ tape('POST /add with huge body', function (test) {
   })
 })
 
-tape('POST /add with invalid body', function (test) {
+tape('POST /encryptionkey with invalid body', function (test) {
   server(function (port, done) {
     var request = http.request({
       method: 'POST',
-      path: '/add',
+      path: '/encryptionkey',
       port
     })
       .once('response', function (response) {
@@ -93,8 +94,8 @@ tape('POST /add with invalid body', function (test) {
           test.ifError(error, 'no error')
           test.equal(
             buffer.toString(),
-            JSON.stringify({ error: 'invalid add' }),
-            'invalid add message'
+            JSON.stringify({ error: 'invalid request' }),
+            'invalid encryption key request'
           )
           test.end()
           done()
@@ -104,21 +105,22 @@ tape('POST /add with invalid body', function (test) {
   })
 })
 
-tape('POST /add with bad signature body', function (test) {
+tape('POST /encryptionkey with bad signature body', function (test) {
   server(function (port, done) {
     var message = {
-      name: 'test device',
       date: new Date().toISOString(),
+      authenticationToken: 'a'.repeat(64),
+      clientStretchedPassword: 'a'.repeat(64),
       email: 'test@example.com'
     }
-    var add = {
+    var data = {
       publicKey: 'a'.repeat(64),
       signature: 'b'.repeat(128),
       message
     }
     var request = http.request({
       method: 'POST',
-      path: '/add',
+      path: '/encryptionkey',
       port
     })
       .once('response', function (response) {
@@ -129,6 +131,6 @@ tape('POST /add with bad signature body', function (test) {
         test.end()
         done()
       })
-    request.end(JSON.stringify(add))
+    request.end(JSON.stringify(data))
   })
 })

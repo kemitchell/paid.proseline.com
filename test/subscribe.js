@@ -1,6 +1,7 @@
 var concat = require('simple-concat')
 var constants = require('./constants')
 var http = require('http')
+var keyserverProtocol = require('../keyserver-protocol')
 var mailgun = require('../mailgun/test').events
 var makeKeyPair = require('./make-key-pair')
 var sign = require('./sign')
@@ -10,9 +11,15 @@ module.exports = function (options, callback) {
   var email = options.email
   var port = options.port
   var test = options.test
+  var password = options.password
+  var result = keyserverProtocol.client.login({ password, email })
+  var authenticationToken = result.authenticationToken.toString('hex')
+  var clientStretchedPassword = result.clientStretchedPassword.toString('hex')
   var message = {
     token: constants.VALID_STRIPE_SOURCE,
     date: new Date().toISOString(),
+    authenticationToken,
+    clientStretchedPassword,
     email
   }
   var order = {

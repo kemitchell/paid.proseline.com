@@ -1,4 +1,5 @@
 {
+  "title": "Encryption Key Request",
   "type": "object",
   "properties": {
     "publicKey": {
@@ -15,37 +16,30 @@
     "message": {
       "type": "object",
       "properties": {
-        "token": {
-          "title": "Stripe Payment Token",
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 32
-        },
         "email": {
           "title": "E-Mail Address",
           "type": "string",
           "format": "email",
           "maxLength": 254
         },
-        "authenticationToken": {
-          "title": "Authentication Token",
-          "type": "string",
-          "pattern": "^[0-9a-f]{64}$"
-        },
         "clientStretchedPassword": {
           "title": "Stretched Password",
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
         },
+        "authenticationToken": {
+          "title": "Authentication Token",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
         "date": {
-          "title": "Order Date",
+          "title": "Request Date",
           "type": "string",
           "format": "date-time",
           "maxLength": 25
         }
       },
       "required": [
-        "token",
         "email",
         "authenticationToken",
         "clientStretchedPassword",
