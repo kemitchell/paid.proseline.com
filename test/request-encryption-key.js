@@ -4,7 +4,7 @@ var keyserverProtocol = require('../keyserver-protocol')
 var makeKeyPair = require('./make-key-pair')
 var sign = require('./sign')
 
-module.exports = function (email, password, port, test, callback) {
+module.exports = function (email, password, port, callback) {
   var keyPair = makeKeyPair()
   var result = keyserverProtocol.client.login({ email, password })
   var authenticationToken = result.authenticationToken.toString('hex')
@@ -22,17 +22,12 @@ module.exports = function (email, password, port, test, callback) {
   }
   http.request({ path: '/encryptionkey', method: 'POST', port })
     .once('response', function (response) {
-      test.equal(
-        response.statusCode, 200,
-        'responds 200'
-      )
+      var statusCode = response.statusCode
       concat(response, function (error, buffer) {
-        test.ifError(error, 'no error')
+        if (error) return callback(error)
         var body = buffer.toString()
         var parsed = JSON.parse(body)
-        test.strictEqual(parsed.error, undefined)
-        test.assert(parsed.hasOwnProperty('serverWrappedKey'))
-        callback(null, parsed)
+        callback(null, statusCode, parsed)
       })
     })
     .end(JSON.stringify(body))

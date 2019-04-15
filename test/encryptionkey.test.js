@@ -13,14 +13,34 @@ tape('POST /encryptionkey', function (test) {
     subscribe({ email, password, port }, function (message) {
       confirmSubscribe(message, port, null, function () {
         requestEncryptionKey(
-          email, password, port, test,
-          function (error, result) {
+          email, password, port,
+          function (error, statusCode, result) {
             test.ifError(error)
+            test.strictEqual(statusCode, 200)
+            test.strictEqual(typeof result.serverWrappedKey, 'string')
             test.end()
             done()
           }
         )
       })
+    })
+  })
+})
+
+tape('POST /encryptionkey without confirming', function (test) {
+  server(function (port, done) {
+    var email = 'test@example.com'
+    var password = 'a terrible password'
+    subscribe({ email, password, port }, function (message) {
+      requestEncryptionKey(
+        email, password, port,
+        function (error, statusCode, result) {
+          test.ifError(error)
+          test.strictEqual(statusCode, 400)
+          test.end()
+          done()
+        }
+      )
     })
   })
 })
