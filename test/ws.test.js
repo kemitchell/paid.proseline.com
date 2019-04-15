@@ -3,6 +3,7 @@ var duplexify = require('duplexify')
 var makeKeyPair = require('./make-key-pair')
 var multiplex = require('multiplex')
 var protocol = require('proseline-protocol')
+var requestEncryptionKey = require('./request-encryption-key')
 var runSeries = require('run-series')
 var server = require('./server')
 var sign = require('./sign')
@@ -33,49 +34,59 @@ tape.test('Invitations', function (test) {
     var password = 'a terrible password'
     subscribe({ keyPair, password, email, port }, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, null, function () {
-        var replicationKey = makeRandom(32)
-        var writeSeed = makeRandom(32)
-        var title = 'test project'
-        var firstWS = makeWebsocket(port)
-        var firstPlex = multiplex()
-        var firstProtocol = makeInvitationProtocol(firstPlex)
-        var invitation = makeInvitation(keyPair, {
-          replicationKey, writeSeed, title
-        })
-        connect(firstPlex, firstWS)
-        firstProtocol.invitation(invitation, function (error) {
-          test.ifError(error, 'no send invitation error')
-          test.pass('sent invitation')
-          var secondWS = makeWebsocket(port)
-          var secondPlex = testErrors(multiplex())
-          var secondProtocol = makeInvitationProtocol(secondPlex)
-          var request = makeInvitationRequest(email, keyPair)
-          secondProtocol.request(request, function (error) {
-            test.ifError(error, 'no request send error')
-            test.pass('sent request')
-          })
-          secondProtocol.once('invitation', function (invitation) {
-            test.pass('received invitation')
-            var message = invitation.message
-            test.equal(
-              message.replicationKey, replicationKey.toString('hex'),
-              'received replication key'
-            )
-            test.equal(
-              message.writeSeed, writeSeed.toString('hex'),
-              'received received write seed'
-            )
-            test.equal(
-              message.title, title,
-              'received title'
-            )
-            firstWS.destroy()
-            secondWS.destroy()
-            test.end()
-            done()
-          })
-          connect(secondPlex, secondWS)
-        })
+        requestEncryptionKey(
+          email, password, port,
+          function (error, statusCode, result) {
+            test.ifError(error)
+            test.strictEqual(statusCode, 200)
+            var serverWrappedKey = result.serverWrappedKey
+            // TODO: unwrap client key and encrypt invitation.
+            test.strictEqual(typeof serverWrappedKey, 'string')
+            var replicationKey = makeRandom(32)
+            var writeSeed = makeRandom(32)
+            var title = 'test project'
+            var firstWS = makeWebsocket(port)
+            var firstPlex = multiplex()
+            var firstProtocol = makeInvitationProtocol(firstPlex)
+            var invitation = makeInvitation(keyPair, {
+              replicationKey, writeSeed, title
+            })
+            connect(firstPlex, firstWS)
+            firstProtocol.invitation(invitation, function (error) {
+              test.ifError(error, 'no send invitation error')
+              test.pass('sent invitation')
+              var secondWS = makeWebsocket(port)
+              var secondPlex = testErrors(multiplex())
+              var secondProtocol = makeInvitationProtocol(secondPlex)
+              var request = makeInvitationRequest(email, keyPair)
+              secondProtocol.request(request, function (error) {
+                test.ifError(error, 'no request send error')
+                test.pass('sent request')
+              })
+              secondProtocol.once('invitation', function (invitation) {
+                test.pass('received invitation')
+                var message = invitation.message
+                test.equal(
+                  message.replicationKey, replicationKey.toString('hex'),
+                  'received replication key'
+                )
+                test.equal(
+                  message.writeSeed, writeSeed.toString('hex'),
+                  'received received write seed'
+                )
+                test.equal(
+                  message.title, title,
+                  'received title'
+                )
+                firstWS.destroy()
+                secondWS.destroy()
+                test.end()
+                done()
+              })
+              connect(secondPlex, secondWS)
+            })
+          }
+        )
       })
     })
   })
