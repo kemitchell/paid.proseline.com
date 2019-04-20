@@ -2705,11 +2705,6 @@
         "array-includes": "^3.0.3"
       }
     },
-    "keyserver-protocol": {
-      "version": "1.0.0",
-      "resolved": "https://registry.npmjs.org/keyserver-protocol/-/keyserver-protocol-1.0.0.tgz",
-      "integrity": "sha512-wNNOdZlyisH3YfbRH+uPea75vjc7O02TJYopf1g4M72LYDlJNW+hDkK9f3uAWYSkWFY024n1V+p0X2xYgGbK0A=="
-    },
     "kind-of": {
       "version": "3.2.2",
       "resolved": "https://registry.npmjs.org/kind-of/-/kind-of-3.2.2.tgz",
