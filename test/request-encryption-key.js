@@ -8,11 +8,9 @@ module.exports = function (email, password, port, callback) {
   var keyPair = makeKeyPair()
   var result = keyserverProtocol.client.login({ email, password })
   var authenticationToken = result.authenticationToken.toString('hex')
-  var clientStretchedPassword = result.clientStretchedPassword.toString('hex')
   var message = {
     email,
     authenticationToken,
-    clientStretchedPassword,
     date: new Date().toISOString()
   }
   var body = {

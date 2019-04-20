@@ -22,11 +22,6 @@
           "format": "email",
           "maxLength": 254
         },
-        "clientStretchedPassword": {
-          "title": "Stretched Password",
-          "type": "string",
-          "pattern": "^[0-9a-f]{64}$"
-        },
         "authenticationToken": {
           "title": "Authentication Token",
           "type": "string",
@@ -42,7 +37,6 @@
       "required": [
         "email",
         "authenticationToken",
-        "clientStretchedPassword",
         "date"
       ],
       "additionalProperties": false
