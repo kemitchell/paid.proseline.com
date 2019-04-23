@@ -1,9 +1,8 @@
 var assert = require('assert')
 var sodium = require('sodium-native')
+var xor = require('./xor')
 
 var testing = process.env.NODE_ENV === 'test'
-
-// Key Derivation Parameters
 
 function clientStretch (options) {
   var password = options.password
@@ -37,6 +36,8 @@ function serverStretch (options) {
   return returned
 }
 
+// Key Derivation Parameters
+
 var authenticationTokenParameters = {
   subkey: 1,
   context: Buffer.from('authTokn')
@@ -45,6 +46,16 @@ var authenticationTokenParameters = {
 var verificationHashParameters = {
   subkey: 2,
   context: Buffer.from('verifHsh')
+}
+
+var serverKeyParameters = {
+  subkey: 3,
+  context: Buffer.from('serverKy')
+}
+
+var clientKeyParameters = {
+  subkey: 4,
+  context: Buffer.from('clientKy')
 }
 
 function deriveKey (options) {
@@ -70,11 +81,13 @@ function random (size) {
 
 module.exports = {
   client: {
-    login: clientLogin
+    login: clientLogin,
+    request: clientRequest
   },
   server: {
     register: serverRegister,
-    login: serverLogin
+    login: serverLogin,
+    request: serverRequest
   }
 }
 
@@ -104,6 +117,26 @@ function clientLogin (input) {
     authenticationToken,
     clientStretchedPassword
   }
+}
+
+function clientRequest (input) {
+  assert(typeof input === 'object')
+
+  var clientStretchedPassword = input.clientStretchedPassword
+  assert(Buffer.isBuffer(clientStretchedPassword))
+  assert(clientStretchedPassword.byteLength > 0)
+
+  var clientWrappedKey = input.clientStretchedPassword
+  assert(Buffer.isBuffer(clientWrappedKey))
+  assert(clientWrappedKey.byteLength > 0)
+
+  var clientKey = deriveKeyHelper(
+    clientStretchedPassword, clientKeyParameters
+  )
+
+  var encryptionKey = xor(clientWrappedKey, clientKey)
+
+  return { encryptionKey }
 }
 
 function serverRegister (input) {
@@ -160,6 +193,26 @@ function serverLogin (input) {
   )
 
   return storedVerificationHash.equals(computedVerificationHash)
+}
+
+function serverRequest (input) {
+  assert(typeof input === 'object')
+
+  var serverStretchedPassword = input.serverStretchedPassword
+  assert(Buffer.isBuffer(serverStretchedPassword))
+  assert(serverStretchedPassword.byteLength > 0)
+
+  var serverWrappedKey = input.serverWrappedKey
+  assert(Buffer.isBuffer(serverWrappedKey))
+  assert(serverWrappedKey.byteLength > 0)
+
+  var parameters = { key: serverStretchedPassword }
+  Object.assign(parameters, serverKeyParameters)
+  var serverKey = deriveKeyHelper(
+    serverStretchedPassword, serverKeyParameters
+  )
+  var clientWrappedKey = xor(serverKey, serverWrappedKey)
+  return { clientWrappedKey }
 }
 
 function deriveKeyHelper (key, parameters) {

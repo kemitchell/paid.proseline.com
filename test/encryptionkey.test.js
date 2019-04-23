@@ -17,7 +17,7 @@ tape('POST /encryptionkey', function (test) {
           function (error, statusCode, result) {
             test.ifError(error)
             test.strictEqual(statusCode, 200)
-            test.strictEqual(typeof result.serverWrappedKey, 'string')
+            test.strictEqual(typeof result.clientWrappedKey, 'string')
             test.end()
             done()
           }

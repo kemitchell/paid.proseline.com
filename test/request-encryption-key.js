@@ -7,6 +7,7 @@ var sign = require('./sign')
 module.exports = function (email, password, port, callback) {
   var keyPair = makeKeyPair()
   var result = keyserverProtocol.client.login({ email, password })
+  var clientStretchedPassword = result.clientStretchedPassword
   var authenticationToken = result.authenticationToken.toString('hex')
   var message = {
     email,
@@ -25,6 +26,7 @@ module.exports = function (email, password, port, callback) {
         if (error) return callback(error)
         var body = buffer.toString()
         var parsed = JSON.parse(body)
+        parsed.clientStretchedPassword = clientStretchedPassword
         callback(null, statusCode, parsed)
       })
     })

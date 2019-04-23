@@ -1,5 +1,6 @@
 var confirmSubscribe = require('./confirm-subscribe')
 var duplexify = require('duplexify')
+var keyserverProtocol = require('../keyserver-protocol')
 var makeKeyPair = require('./make-key-pair')
 var multiplex = require('multiplex')
 var protocol = require('proseline-protocol')
@@ -7,7 +8,7 @@ var requestEncryptionKey = require('./request-encryption-key')
 var runSeries = require('run-series')
 var server = require('./server')
 var sign = require('./sign')
-var sodium = require('sodium-native')
+var sodium = require('sodium-universal')
 var subscribe = require('./subscribe')
 var tape = require('tape')
 var websocketStream = require('websocket-stream')
@@ -27,7 +28,7 @@ tape.test('Connect to WebSocket', function (test) {
   })
 })
 
-tape.test('Invitations', function (test) {
+tape.only('Invitations', function (test) {
   server(function (port, done) {
     var keyPair = makeKeyPair()
     var email = 'test@example.com'
@@ -39,9 +40,13 @@ tape.test('Invitations', function (test) {
           function (error, statusCode, result) {
             test.ifError(error)
             test.strictEqual(statusCode, 200)
-            var serverWrappedKey = result.serverWrappedKey
-            // TODO: unwrap client key and encrypt invitation.
-            test.strictEqual(typeof serverWrappedKey, 'string')
+            var clientWrappedKey = result.clientWrappedKey
+            var clientStretchedPassword = result.clientStretchedPassword
+            var clientResult = keyserverProtocol.client.request({
+              clientStretchedPassword,
+              clientWrappedKey
+            })
+            var encryptionKey = clientResult.encryptionKey
             var replicationKey = makeRandom(32)
             var writeSeed = makeRandom(32)
             var title = 'test project'
@@ -49,7 +54,7 @@ tape.test('Invitations', function (test) {
             var firstPlex = multiplex()
             var firstProtocol = makeInvitationProtocol(firstPlex)
             var invitation = makeInvitation(keyPair, {
-              replicationKey, writeSeed, title
+              replicationKey, writeSeed, title, encryptionKey
             })
             connect(firstPlex, firstWS)
             firstProtocol.invitation(invitation, function (error) {
@@ -111,10 +116,26 @@ function makeInvitationRequest (email, keyPair) {
 }
 
 function makeInvitation (keyPair, options) {
+  var replicationKey = options.replicationKey
+  var replicationKeyNonce = randomNonce()
+  var writeSeed = options.writeSeed
+  var writeSeedNonce = randomNonce()
+  var title = options.title
+  var titleNonce = randomNonce()
+  var encryptionKey = options.encryptionKey
   return makeMessage(keyPair, {
-    replicationKey: options.replicationKey.toString('hex'),
-    writeSeed: options.writeSeed.toString('hex'),
-    title: options.title
+    replicationKeyCiphertext: encrypt(
+      replicationKey, replicationKeyNonce, encryptionKey
+    ).toString('hex'),
+    replicationKeyNonce: replicationKeyNonce.toString('hex'),
+    writeSeedCiphertext: encrypt(
+      writeSeed, writeSeedNonce, encryptionKey
+    ).toString('hex'),
+    writeSeedNonce: writeSeedNonce.toString('hex'),
+    titleCiphertext: encrypt(
+      Buffer.from(title), titleNonce, encryptionKey
+    ).toString('hex'),
+    titleNonce: titleNonce.toString('hex')
   })
 }
 
@@ -594,3 +615,19 @@ tape('envelopes across sockets', function (test) {
     }
   })
 })
+
+function encrypt (plaintext, nonce, key) {
+  var ciphertext = Buffer.alloc(
+    plaintext.length + sodium.crypto_secretbox_MACBYTES
+  )
+  sodium.crypto_secretbox_easy(
+    ciphertext, plaintext, nonce, key
+  )
+  return ciphertext
+}
+
+function randomNonce () {
+  var nonce = Buffer.alloc(sodium.crypto_secretbox_NONCEBYTES)
+  sodium.randombytes_buf(nonce)
+  return nonce
+}

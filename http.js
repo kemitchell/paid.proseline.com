@@ -16,6 +16,7 @@ var stringify = require('fast-json-stable-stringify')
 var stripe = require('./stripe')
 var url = require('url')
 var uuid = require('uuid')
+var xor = require('./xor')
 
 var STYLESHEET = '/styles.css'
 var STYLES = fs.readFileSync('styles.css')
@@ -760,15 +761,20 @@ function requestEncryptionKey (request, response) {
           var verificationHash = Buffer.from(
             user.verificationHash, 'hex'
           )
-          var result = keyserverProtocol.server.login({
+          var loginResult = keyserverProtocol.server.login({
             authenticationToken,
             authenticationSalt,
             verificationHash
           })
-          if (!result) return invalidRequest('invalid')
-          response.end(JSON.stringify({
-            serverWrappedKey: user.serverWrappedKey
-          }))
+          if (!loginResult) return invalidRequest('invalid')
+          var serverWrappedKey = Buffer.from(user.serverWrappedKey, 'hex')
+          var serverStretchedPassword = Buffer.from(user.serverStretchedPassword, 'hex')
+          var requestResult = keyserverProtocol.server.request({
+            serverStretchedPassword,
+            serverWrappedKey
+          })
+          var clientWrappedKey = requestResult.clientWrappedKey
+          response.end(JSON.stringify({ clientWrappedKey }))
         }
       )
     })

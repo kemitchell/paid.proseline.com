@@ -103,15 +103,28 @@ exports.getProjectKeys = function (discoveryKey, callback) {
 exports.putProjectKeys = function (options, callback) {
   assert.strictEqual(typeof options, 'object')
   assert.strictEqual(typeof options.discoveryKey, 'string')
-  assert.strictEqual(typeof options.replicationKey, 'string')
-  assert.strictEqual(typeof options.writeSeed, 'string')
-  assert.strictEqual(typeof options.title, 'string')
+  assert.strictEqual(typeof options.replicationKeyCiphertext, 'string')
+  assert.strictEqual(typeof options.replicationKeyNonce, 'string')
+  assert.strictEqual(typeof options.writeSeedCiphertext, 'string')
+  assert.strictEqual(typeof options.writeSeedNonce, 'string')
+  assert.strictEqual(typeof options.titleCiphertext, 'string')
+  assert.strictEqual(typeof options.titleNonce, 'string')
   assert.strictEqual(typeof callback, 'function')
   var discoveryKey = options.discoveryKey
-  var replicationKey = options.replicationKey
-  var writeSeed = options.writeSeed
-  var title = options.title
-  var record = { replicationKey, writeSeed, title }
+  var replicationKeyCiphertext = options.replicationKeyCiphertext
+  var replicationKeyNonce = options.replicationKeyNonce
+  var writeSeedCiphertext = options.writeSeedCiphertext
+  var writeSeedNonce = options.writeSeedNonce
+  var titleCiphertext = options.titleCiphertext
+  var titleNonce = options.titleNonce
+  var record = {
+    replicationKeyCiphertext,
+    replicationKeyNonce,
+    writeSeedCiphertext,
+    writeSeedNonce,
+    titleCiphertext,
+    titleNonce
+  }
   s3.put(projectKeysKey(discoveryKey), record, callback)
 }
 

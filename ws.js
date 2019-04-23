@@ -211,7 +211,9 @@ function makeInvitationStream (options) {
 
   returned.on('request', function (envelope) {
     var publicKey = envelope.publicKey
+    console.log('%s is %j', 'publicKey', publicKey)
     log.info({ publicKey }, 'received request')
+    console.error('received request')
     ensureActiveSubscription(publicKey, function (error, email, subscription) {
       if (error) return log.error(error)
       if (!subscription) return log.info('no active subscription')
@@ -229,12 +231,16 @@ function makeInvitationStream (options) {
       if (error) return log.error(error)
       var invitation = {
         message: {
-          replicationKey: keys.replicationKey,
-          writeSeed: keys.writeSeed,
-          title: keys.title
+          replicationKeyCiphertext: keys.replicationKeyCiphertext,
+          replicationKeyNonce: keys.replicationKeyNonce,
+          writeSeedCiphertext: keys.writeSeedCiphertext,
+          writeSeedNonce: keys.writeSeedNonce,
+          titleCiphertext: keys.title,
+          titleNonce: keys.titleNonce
         },
         publicKey: process.env.PUBLIC_KEY
       }
+      console.log(invitation)
       var signature = Buffer.alloc(sodium.crypto_sign_BYTES)
       sodium.crypto_sign_detached(
         signature,
@@ -271,13 +277,17 @@ function makeInvitationStream (options) {
 
 function makeReplicationStream (options) {
   assert.strictEqual(typeof options, 'object')
-  assert.strictEqual(typeof options.replicationKey, 'string')
+  assert.strictEqual(typeof options.replicationKeyCiphertext, 'string')
+  assert.strictEqual(typeof options.replicationKeyNonce, 'string')
   assert.strictEqual(typeof options.discoveryKey, 'string')
-  assert.strictEqual(typeof options.writeSeed, 'string')
+  assert.strictEqual(typeof options.writeSeedCiphertext, 'string')
+  assert.strictEqual(typeof options.writeSeedNonce, 'string')
   assert(options.log)
-  var replicationKey = options.replicationKey
+  var replicationKeyCiphertext = options.replicationKeyCiphertext
+  var replicationKeyNonce = options.replicationKeyNonce
   var discoveryKey = options.discoveryKey
-  var writeSeed = options.writeSeed
+  var writeSeedCiphertext = options.writeSeedCiphertext
+  var writeSeedNonce = options.writeSeedNonce
   var log = options.log.child({ discoveryKey })
 
   // For each log, track the highest index that we believe our
