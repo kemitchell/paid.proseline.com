@@ -1,1 +1,3 @@
 TODO: Send and receive encrypted invitations
+TODO: Test POST /push
+TODO: Test POST /pull
