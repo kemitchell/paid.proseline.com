@@ -17,6 +17,7 @@
     "run-waterfall": "^1.1.6",
     "simple-concat": "^1.0.0",
     "simple-concat-limit": "^2.0.0",
+    "sodium-native": "^2.4.2",
     "stripe": "^6.28.0",
     "uuid": "^3.3.2",
     "websocket-stream": "^5.5.0",
