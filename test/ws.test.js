@@ -216,3 +216,80 @@ tape('replicate unknown project', function (test) {
       })
   })
 })
+
+tape('replicate project with wrong key', function (test) {
+  server(function (port, done) {
+    // User
+    var clientKeyPair = crypto.signingKeyPair()
+    var email = 'test@example.com'
+    var password = 'a terrible password'
+
+    // Project
+    var replicationKey = crypto.projectReplicationKey()
+    var projectDiscoveryKey = crypto.discoveryKey(replicationKey)
+    var readKey = crypto.projectReadKey()
+    var writeSeed = crypto.signingKeyPairSeed()
+
+    runSeries([
+      subscribeAndInvite,
+      tryToReplicateWithWrongKey
+    ], function () {
+      test.end()
+      done()
+    })
+
+    function subscribeAndInvite (done) {
+      var subscribeOptions = {
+        keyPair: clientKeyPair,
+        email,
+        password,
+        port
+      }
+      subscribe(subscribeOptions, function (subscribeMessage) {
+        confirmSubscribe(subscribeMessage, port, null, function () {
+          requestEncryptionKey(
+            email, password, port,
+            function (error, statusCode, result) {
+              test.ifError(error, 'no error')
+              test.strictEqual(statusCode, 200, 'encryption key: responds 200')
+              var clientWrappedKey = result.clientWrappedKey
+              var clientStretchedPassword = result.clientStretchedPassword
+              var clientResult = keyserverProtocol.client.request({
+                clientStretchedPassword,
+                clientWrappedKey
+              })
+              var accountEncryptionKey = clientResult.encryptionKey.toString('hex')
+              invite({
+                clientKeyPair,
+                accountEncryptionKey,
+                replicationKey,
+                readKey,
+                writeSeed
+              }, port, test, done)
+            }
+          )
+        })
+      })
+    }
+
+    function tryToReplicateWithWrongKey (done) {
+      test.pass('replicating')
+      var socket = websocketStream(
+        'ws://localhost:' + port + '/' + projectDiscoveryKey,
+        wsOptions
+      )
+      var protocol = new ReplicationProtocol({
+        key: Buffer.from(crypto.projectReplicationKey(), 'hex')
+      })
+      protocol.handshake(function (error) {
+        test.ifError(error, 'no handshake error')
+      })
+      socket.once('end', function () {
+        test.pass('ended')
+        protocol.end()
+        done()
+      })
+      socket.pipe(protocol).pipe(socket)
+    }
+  })
+})

@@ -61,6 +61,10 @@ module.exports = function (serverLog) {
         key: Buffer.from(replicationKey, 'hex')
       })
 
+      var receivedData = false
+      setTimeout(function () {
+        if (!receivedData) close()
+      }, 1000)
       protocol.once('handshake', function () {
         log.info('received handshake')
         protocol.handshake(function (error) {
@@ -76,6 +80,7 @@ module.exports = function (serverLog) {
       var requestQueue = async.queue(sendEnvelope, 1)
 
       protocol.on('request', function (request) {
+        receivedData = true
         log.info(request, 'received request')
         requestQueue.push(request, function (error) {
           if (error) log.error(error)
@@ -143,6 +148,7 @@ module.exports = function (serverLog) {
 
       // When our peer offers an envelope...
       protocol.on('offer', function (reference) {
+        receivedData = true
         log.info(reference, 'received offer')
         var logPublicKey = reference.logPublicKey
         var offeredIndex = reference.index
@@ -164,6 +170,7 @@ module.exports = function (serverLog) {
 
       // When our peer sends an envelope...
       protocol.on('outerEnvelope', function (outerEnvelope) {
+        receivedData = true
         var logPublicKey = outerEnvelope.logPublicKey
         var index = outerEnvelope.index
         log.info({ logPublicKey, index }, 'received envelope')
@@ -201,7 +208,7 @@ module.exports = function (serverLog) {
       var closed = false
       function close () {
         if (closed) return
-        log.info('close')
+        log.info('closing')
         events.removeListener(eventName, onEnvelopeEvent)
         protocol.end()
         socket.end()
