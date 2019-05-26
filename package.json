@@ -7,7 +7,7 @@
     "aws-sdk": "^2.463.0",
     "busboy": "^0.3.1",
     "duplexify": "^4.0.0",
-    "encrypted-json-protocol": "^2.0.2",
+    "encrypted-json-protocol": "^2.0.3",
     "fast-json-stable-stringify": "^2.0.0",
     "json-parse-errback": "^2.0.1",
     "multiplex": "^6.7.0",

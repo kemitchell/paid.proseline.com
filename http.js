@@ -65,8 +65,12 @@ module.exports = function (serverLog) {
       if (method === 'POST') return webhook(request, response)
       return respond405(request, response)
     }
-    if (pathname === '/invite') {
-      if (method === 'POST') return invite(request, response)
+    if (pathname === '/invitations') {
+      if (method === 'POST') return invitations(request, response)
+      return respond405(request, response)
+    }
+    if (pathname === '/invitation') {
+      if (method === 'POST') return invitation(request, response)
       return respond405(request, response)
     }
     if (pathname === '/pull') {
@@ -167,7 +171,7 @@ function postSubscribe (request, response) {
           },
           function (done) {
             request.log.info('put user')
-            data.putPublicKey(publicKey, { email, first: true }, done)
+            data.putClientPublicKey(publicKey, { email, first: true }, done)
           }
         ], function (error) {
           if (error) return serverError(error)
@@ -675,7 +679,7 @@ function getAdd (request, response) {
         data.deleteCapability(capability, done)
       }, 'deleted capability'),
       logSuccess(function (done) {
-        data.putPublicKey(publicKey, { email, name }, done)
+        data.putClientPublicKey(publicKey, { email, name }, done)
       }, 'added key')
     ], function (error) {
       if (error) return serverError(error)
@@ -798,6 +802,142 @@ function requestEncryptionKey (request, response) {
   }
 }
 
+var validInvitesRequest = ajv.compile({
+  type: 'object',
+  properties: {
+    publicKey: {
+      type: 'string',
+      pattern: '^[0-9a-f]{64}$'
+    },
+    signature: {
+      type: 'string',
+      pattern: '^[0-9a-f]{128}$'
+    },
+    message: {
+      type: 'object',
+      properties: {
+        email: {
+          type: 'string',
+          format: 'email',
+          maxLength: 254
+        },
+        date: {
+          type: 'string',
+          format: 'date-time',
+          maxLength: 25
+        }
+      },
+      required: ['email', 'date'],
+      additionalProperties: false
+    }
+  },
+  required: ['publicKey', 'signature', 'message'],
+  additionalProperties: false
+})
+
+function invitations (request, response) {
+  runWaterfall([
+    function (done) {
+      concatLimit(request, 1024, done)
+    },
+    parse
+  ], function (error, body) {
+    if (error) {
+      /* istanbul ignore else */
+      if (error.limit) {
+        request.pause()
+        response.statusCode = 413
+        return response.end()
+      } else {
+        response.statusCode = 500
+        response.end()
+      }
+    }
+    if (!validInvitesRequest(body)) {
+      response.statusCode = 400
+      return response.end()
+    }
+    request.log.info('valid invites request')
+    if (!crypto.verify(body, body.publicKey, 'signature', 'message')) {
+      response.statusCode = 400
+      return response.end()
+    }
+    request.log.info('valid signature')
+    if (!unexpired(body)) {
+      response.statusCode = 400
+      return response.end()
+    }
+    request.log.info('unexpired')
+    var email = body.message.email
+    var clientPublicKey = body.publicKey
+    data.getClientPublicKey(clientPublicKey, function (error, record) {
+      if (error) {
+        request.log.error(error)
+        response.statusCode = 500
+        return response.end()
+      }
+      if (record.email !== email) {
+        request.log.info('email mismatch')
+        response.statusCode = 400
+        return response.end()
+      }
+      data.getUser(email, function (error, user) {
+        /* istanbul ignore if */
+        if (error) {
+          request.log.error(error)
+          response.statusCode = 500
+          return response.end()
+        }
+
+        if (!user) {
+          response.statusCode = 400
+          return response.end()
+        }
+
+        request.log.info(user, 'existing Stripe customer')
+        var customerID = user.customerID
+        stripe.getActiveSubscription(
+          customerID,
+          function (error, subscription) {
+            /* istanbul ignore if */
+            if (error) {
+              request.log.error(error)
+              response.statusCode = 500
+              return response.end()
+            }
+            if (!subscription) {
+              request.log.info('no subscription')
+              response.statusCode = 400
+              return response.end()
+            }
+            data.listUserProjects(
+              email,
+              function (error, projectDiscoveryKeys) {
+                if (error) return request.log.error(error)
+                runSeries(
+                  projectDiscoveryKeys.map(function (projectDiscoveryKey) {
+                    return function (done) {
+                      data.getProjectKeys(projectDiscoveryKey, done)
+                    }
+                  }),
+                  function (error, results) {
+                    if (error) {
+                      request.log.error(error)
+                      response.statusCode = 500
+                      return response.end()
+                    }
+                    response.end(JSON.stringify(results))
+                  }
+                )
+              }
+            )
+          }
+        )
+      })
+    })
+  })
+}
+
 var validInvite = ajv.compile({
   type: 'object',
   properties: {
@@ -815,7 +955,7 @@ var validInvite = ajv.compile({
   additionalProperties: false
 })
 
-function invite (request, response) {
+function invitation (request, response) {
   var log = request.log
   runWaterfall([
     function (done) { concatLimit(request, 2048, done) },
@@ -873,7 +1013,7 @@ function invite (request, response) {
 }
 
 function ensureActiveSubscription (publicKey, callback) {
-  data.getPublicKey(publicKey, function (error, record) {
+  data.getClientPublicKey(publicKey, function (error, record) {
     if (error) return callback(error)
     if (!record) return callback()
     var email = record.email
@@ -1045,7 +1185,7 @@ function push (request, response) {
       }
       request.log.info({ logPublicKey, index }, 'received envelope')
       if (index === 0) {
-        data.putProjectPublicKey(
+        data.putLogPublicKey(
           projectDiscoveryKey, logPublicKey,
           function (error) {
             if (error) return request.log.error(error)

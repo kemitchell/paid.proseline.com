@@ -1,6 +1,7 @@
 var assert = require('assert')
 var indices = require('./indices')
 var s3 = require('./s3')
+var schemas = require('@proseline/schemas')
 var uuid = require('uuid')
 
 var DELIMITER = s3.DELIMITER
@@ -14,7 +15,7 @@ function projectPublicKeyKey (projectDiscoveryKey, logPublicKey) {
   return `${projectKey(projectDiscoveryKey)}/logPublicKeys/${logPublicKey}`
 }
 
-exports.putProjectPublicKey = function (projectDiscoveryKey, logPublicKey, callback) {
+exports.putLogPublicKey = function (projectDiscoveryKey, logPublicKey, callback) {
   assert.strictEqual(typeof projectDiscoveryKey, 'string')
   assert.strictEqual(typeof logPublicKey, 'string')
   assert.strictEqual(typeof callback, 'function')
@@ -22,7 +23,7 @@ exports.putProjectPublicKey = function (projectDiscoveryKey, logPublicKey, callb
   s3.put(key, {}, callback)
 }
 
-exports.listProjectPublicKeys = function (projectDiscoveryKey, callback) {
+exports.listLogPublicKeys = function (projectDiscoveryKey, callback) {
   assert.strictEqual(typeof projectDiscoveryKey, 'string')
   assert.strictEqual(typeof callback, 'function')
   var prefix = projectPublicKeyKey(projectDiscoveryKey, '')
@@ -100,28 +101,15 @@ exports.getProjectKeys = function (projectDiscoveryKey, callback) {
 
 exports.putProjectKeys = function (options, callback) {
   assert.strictEqual(typeof options, 'object')
-  assert.strictEqual(typeof options.replicationKey, 'string')
   assert.strictEqual(typeof options.projectDiscoveryKey, 'string')
+  assert.strictEqual(typeof options.replicationKey, 'string')
   assert.strictEqual(typeof options.readKeyCiphertext, 'string')
   assert.strictEqual(typeof options.readKeyNonce, 'string')
   assert.strictEqual(typeof callback, 'function')
   var projectDiscoveryKey = options.projectDiscoveryKey
-  var replicationKey = options.replicationKeyCiphertext
-  var readKeyCiphertext = options.readKeyCiphertext
-  var readKeyNonce = options.readKeyNonce
-  var writeSeedCiphertext = options.writeSeedCiphertext
-  var writeSeedNonce = options.writeSeedNonce
-  var titleCiphertext = options.titleCiphertext
-  var titleNonce = options.titleNonce
-  var record = {
-    replicationKey,
-    readKeyCiphertext,
-    readKeyNonce,
-    writeSeedCiphertext,
-    writeSeedNonce,
-    titleCiphertext,
-    titleNonce
-  }
+  var record = {}
+  Object.keys(schemas.invitation.properties)
+    .forEach(function (key) { record[key] = options[key] })
   s3.put(projectKeysKey(projectDiscoveryKey), record, callback)
 }
 
@@ -171,23 +159,23 @@ exports.listUserProjects = function (email, callback) {
   })
 }
 
-function logPublicKeyKey (logPublicKey) {
-  assert.strictEqual(typeof logPublicKey, 'string')
-  return `logPublicKeys/${logPublicKey}`
+function clientPublicKeyKey (clientPublicKey) {
+  assert.strictEqual(typeof clientPublicKey, 'string')
+  return `clientPublicKeys/${clientPublicKey}`
 }
 
-exports.getPublicKey = function (logPublicKey, callback) {
-  assert.strictEqual(typeof logPublicKey, 'string')
+exports.getClientPublicKey = function (clientPublicKey, callback) {
+  assert.strictEqual(typeof clientPublicKey, 'string')
   assert.strictEqual(typeof callback, 'function')
-  s3.get(logPublicKeyKey(logPublicKey), callback)
+  s3.get(clientPublicKeyKey(clientPublicKey), callback)
 }
 
-exports.putPublicKey = function (logPublicKey, data, callback) {
-  assert.strictEqual(typeof logPublicKey, 'string')
+exports.putClientPublicKey = function (clientPublicKey, data, callback) {
+  assert.strictEqual(typeof clientPublicKey, 'string')
   assert.strictEqual(typeof data, 'object')
   assert.strictEqual(typeof callback, 'function')
   data.date = new Date().toISOString()
-  s3.put(logPublicKeyKey(logPublicKey), data, callback)
+  s3.put(clientPublicKeyKey(clientPublicKey), data, callback)
 }
 
 function userKey (email) {
