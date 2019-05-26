@@ -22,7 +22,7 @@ tape('POST /subscribe', function (test) {
   })
 })
 
-tape('POST /subscribe with huge body', function (test) {
+tape.skip('POST /subscribe with huge body', function (test) {
   server(function (port, done) {
     var request = http.request({
       method: 'POST',
