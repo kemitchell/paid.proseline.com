@@ -10,7 +10,7 @@
     "json-parse-errback": "^2.0.1",
     "multiplex": "^6.7.0",
     "pino": "^5.12.6",
-    "pino-http": "^4.1.0",
+    "pino-http": "^4.2.0",
     "proseline-protocol": "8.0.0-beta.1",
     "run-parallel": "^1.1.9",
     "run-series": "^1.1.8",
