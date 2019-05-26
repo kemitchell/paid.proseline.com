@@ -293,3 +293,135 @@ tape('replicate project with wrong key', function (test) {
     }
   })
 })
+
+tape('envelopes across sockets', function (test) {
+  server(function (port, done) {
+    // User
+    var clientKeyPair = crypto.signingKeyPair()
+    var logKeyPair = crypto.signingKeyPair()
+    var logPublicKey = logKeyPair.publicKey
+    var email = 'test@example.com'
+    var password = 'a terrible password'
+
+    // Project
+    var replicationKey = crypto.projectReplicationKey()
+    var projectDiscoveryKey = crypto.discoveryKey(replicationKey)
+    var readKey = crypto.projectReadKey()
+    var writeSeed = crypto.signingKeyPairSeed()
+    var writeKeyPair = crypto.signingKeyPairFromSeed(writeSeed)
+
+    // First Entry
+    var entry = {
+      type: 'intro',
+      name: 'John Doe',
+      device: 'laptop',
+      timestamp: new Date().toISOString()
+    }
+    var index = 0
+    var innerEnvelope = { entry }
+    crypto.sign(innerEnvelope, logKeyPair.secretKey, 'logSignature')
+    crypto.sign(innerEnvelope, writeKeyPair.secretKey, 'projectSignature')
+    var nonce = crypto.randomNonce()
+    var outerEnvelope = {
+      projectDiscoveryKey,
+      logPublicKey,
+      index,
+      nonce,
+      encryptedInnerEnvelope: crypto.encryptUTF8(
+        stringify(entry), nonce, readKey
+      )
+    }
+
+    runSeries([
+      subscribeAndInvite,
+      awaitOffer,
+      sendEnvelope
+    ])
+
+    function finish () {
+      test.end()
+      done()
+    }
+
+    function subscribeAndInvite (done) {
+      var subscribeOptions = {
+        keyPair: clientKeyPair,
+        email,
+        password,
+        port
+      }
+      subscribe(subscribeOptions, function (subscribeMessage) {
+        confirmSubscribe(subscribeMessage, port, null, function () {
+          requestEncryptionKey(
+            email, password, port,
+            function (error, statusCode, result) {
+              test.ifError(error, 'no error')
+              test.strictEqual(statusCode, 200, 'encryption key: responds 200')
+              var clientWrappedKey = result.clientWrappedKey
+              var clientStretchedPassword = result.clientStretchedPassword
+              var clientResult = keyserverProtocol.client.request({
+                clientStretchedPassword,
+                clientWrappedKey
+              })
+              var accountEncryptionKey = clientResult.encryptionKey.toString('hex')
+              invite({
+                clientKeyPair,
+                accountEncryptionKey,
+                replicationKey,
+                readKey,
+                writeSeed
+              }, port, test, done)
+            }
+          )
+        })
+      })
+    }
+
+    function awaitOffer (done) {
+      replicate({
+        projectDiscoveryKey, replicationKey, test, port
+      }, function (socket, protocol) {
+        protocol.once('offer', function (offer) {
+          test.equal(
+            offer.logPublicKey, logPublicKey,
+            'server offers public key'
+          )
+          test.equal(
+            offer.index, index,
+            'server offers entry 0'
+          )
+          protocol.end()
+          socket.end()
+          finish()
+        })
+        done()
+      })
+    }
+
+    function sendEnvelope (done) {
+      replicate({
+        projectDiscoveryKey, replicationKey, test, port
+      }, function (socket, protocol) {
+        protocol.offer({ logPublicKey, index }, function (error) {
+          test.ifError(error, 'no error offering to server')
+        })
+        protocol.once('request', function (request) {
+          test.equal(
+            request.logPublicKey, logPublicKey,
+            'server requests public key'
+          )
+          test.equal(
+            request.index, index,
+            'server requests index'
+          )
+          protocol.outerEnvelope(outerEnvelope, function (error) {
+            test.ifError(error, 'no error sending envelope')
+            protocol.end()
+            socket.end()
+            done()
+          })
+        })
+      })
+    }
+  })
+})
