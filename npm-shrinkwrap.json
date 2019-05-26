@@ -148,6 +148,11 @@
       "integrity": "sha512-KyqT0kkdxgbGys9mvo/1Mgdt/LGvUFPCZIK9pWPIfOM2mYzMDd/eVYy4sMP1YqvVI129k0alxRyM53H2MAs/Nw==",
       "dev": true
     },
+    "@proseline/schemas": {
+      "version": "1.0.0-pre.6",
+      "resolved": "https://registry.npmjs.org/@proseline/schemas/-/schemas-1.0.0-pre.6.tgz",
+      "integrity": "sha512-ZBD3waelftQVpFL3ObY3uKHgMnMkVmoRq1sZkvO1B2FAUS9Hg+tj/h4XTNIdf2WbBbUHQS7Nb0J2xUmejGIvWA=="
+    },
     "abbrev": {
       "version": "1.0.9",
       "resolved": "https://registry.npmjs.org/abbrev/-/abbrev-1.0.9.tgz",
@@ -373,6 +378,11 @@
         "ieee754": "^1.1.4",
         "isarray": "^1.0.0"
       }
+    },
+    "buffer-alloc-unsafe": {
+      "version": "1.1.0",
+      "resolved": "https://registry.npmjs.org/buffer-alloc-unsafe/-/buffer-alloc-unsafe-1.1.0.tgz",
+      "integrity": "sha512-TEM2iMIEQdJ2yjPJoSIsldnleVaAk1oW3DBVUykyOLsEsFmEc9kn+SFFPz+gl54KQNxlDnAwCXosOS9Okx2xAg=="
     },
     "builtin-modules": {
       "version": "1.1.1",
@@ -730,6 +740,60 @@
       "resolved": "https://registry.npmjs.org/emoji-regex/-/emoji-regex-7.0.3.tgz",
       "integrity": "sha512-CwBLREIQ7LvYFB0WyRvwhq5N5qPhc6PMjD6bYggFlI5YyDgl+0vxq5VHbMOFqLg7hfWzmu8T5Z1QofhmTIhItA==",
       "dev": true
+    },
+    "encrypted-json-protocol": {
+      "version": "2.0.2",
+      "resolved": "https://registry.npmjs.org/encrypted-json-protocol/-/encrypted-json-protocol-2.0.2.tgz",
+      "integrity": "sha512-b193B8udd+fa/0PEndNdMLyr6PoflxqDsUTI/Ng1yRx0T46PAfm0dNuiSkXSqx0P1AfcEROYoZtBKgOU2sLUeQ==",
+      "requires": {
+        "inherits": "^2.0.3",
+        "length-prefixed-stream": "^1.6.0",
+        "nanoassert": "^2.0.0"
+      },
+      "dependencies": {
+        "length-prefixed-stream": {
+          "version": "1.6.0",
+          "resolved": "https://registry.npmjs.org/length-prefixed-stream/-/length-prefixed-stream-1.6.0.tgz",
+          "integrity": "sha512-gsJvrb5giDqil/ScQ7fEoplsI2Ch4DwnvnfTW2EGl9KBW6Ekzn8JSNESObqNAeZD8HkSjEMvc5XjhuB66fsSZQ==",
+          "requires": {
+            "buffer-alloc-unsafe": "^1.0.0",
+            "readable-stream": "^2.0.0",
+            "varint": "^5.0.0"
+          }
+        },
+        "nanoassert": {
+          "version": "2.0.0",
+          "resolved": "https://registry.npmjs.org/nanoassert/-/nanoassert-2.0.0.tgz",
+          "integrity": "sha512-7vO7n28+aYO4J+8w96AzhmU8G+Y/xpPDJz/se19ICsqj/momRbb9mh9ZUtkoJ5X3nTnPdhEJyc0qnM6yAsHBaA=="
+        },
+        "readable-stream": {
+          "version": "2.3.6",
+          "resolved": "https://registry.npmjs.org/readable-stream/-/readable-stream-2.3.6.tgz",
+          "integrity": "sha512-tQtKA9WIAhBF3+VLAseyMqZeBjW0AHJoxOtYqSUZNJxauErmLbVm2FW1y+J/YA9dUrAC39ITejlZWhVIwawkKw==",
+          "requires": {
+            "core-util-is": "~1.0.0",
+            "inherits": "~2.0.3",
+            "isarray": "~1.0.0",
+            "process-nextick-args": "~2.0.0",
+            "safe-buffer": "~5.1.1",
+            "string_decoder": "~1.1.1",
+            "util-deprecate": "~1.0.1"
+          }
+        },
+        "string_decoder": {
+          "version": "1.1.1",
+          "resolved": "https://registry.npmjs.org/string_decoder/-/string_decoder-1.1.1.tgz",
+          "integrity": "sha512-n/ShnvDi6FHbbVfviro+WojiFzv+s8MPMHBczVePfUpDJLwoLT0ht1l4YwBCbi8pJAveEEdnkHyPyTP/mzRfwg==",
+          "requires": {
+            "safe-buffer": "~5.1.0"
+          }
+        },
+        "varint": {
+          "version": "5.0.0",
+          "resolved": "https://registry.npmjs.org/varint/-/varint-5.0.0.tgz",
+          "integrity": "sha1-2Ca4n3SQcy+rwMDtaT7Uddyynr8="
+        }
+      }
     },
     "end-of-stream": {
       "version": "1.4.1",
@@ -2323,7 +2387,6 @@
       "version": "3.0.0",
       "resolved": "https://registry.npmjs.org/pump/-/pump-3.0.0.tgz",
       "integrity": "sha512-LwZy+p3SFs1Pytd/jYct4wpv49HiYCqd9Rlc5ZVdk0V+8Yzv6jR5Blk3TRmPL1ft69TxP0IMZGJ+WPFU2BFhww==",
-      "dev": true,
       "requires": {
         "end-of-stream": "^1.1.0",
         "once": "^1.3.1"
@@ -2584,6 +2647,11 @@
       "version": "1.0.0",
       "resolved": "https://registry.npmjs.org/simple-concat/-/simple-concat-1.0.0.tgz",
       "integrity": "sha1-c0TLuLbib7J9ZrL8hvn21Zl1IcY="
+    },
+    "simple-concat-limit": {
+      "version": "1.0.0",
+      "resolved": "https://registry.npmjs.org/simple-concat-limit/-/simple-concat-limit-1.0.0.tgz",
+      "integrity": "sha512-/BLjL2Hq/dF02MrcBOm/FFHscQTCf26x69eEQqnr/lnRY5as3RGHExcwsOZAhCNrZ3VoVRS9M5ltlVoYPJL1Eg=="
     },
     "siphash24": {
       "version": "1.1.1",

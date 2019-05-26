@@ -1,0 +1,25 @@
+{
+  "title": "Data Pull Request",
+  "type": "object",
+  "properties": {
+    "projectDiscoveryKey": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "heads": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-f0-9]{64}$": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "projectDiscoveryKey",
+    "heads"
+  ],
+  "additionalProperties": false
+}

@@ -1,12 +1,14 @@
 var AJV = require('ajv')
 var Busboy = require('busboy')
+var ReplicationProtocol = require('./protocol')
 var assert = require('assert')
-var concatLimit = require('./concat-limit')
+var concatLimit = require('simple-concat-limit')
 var data = require('./data')
 var fs = require('fs')
 var keyserverProtocol = require('./keyserver-protocol')
 var parse = require('json-parse-errback')
 var pinoHTTP = require('pino-http')
+var pump = require('pump')
 var runSeries = require('run-series')
 var runWaterfall = require('run-waterfall')
 var send = require('./send')
@@ -62,6 +64,14 @@ module.exports = function (serverLog) {
       if (method === 'POST') return webhook(request, response)
       return respond405(request, response)
     }
+    if (pathname === '/pull') {
+      if (method === 'POST') return pull(request, response)
+      return respond405(request, response)
+    }
+    if (pathname === '/push') {
+      if (method === 'POST') return push(request, response)
+      return respond405(request, response)
+    }
     return notFound(request, response)
   }
 }
@@ -98,7 +108,7 @@ function postSubscribe (request, response) {
     if (error) {
       /* istanbul ignore else */
       if (error.limit) {
-        // TODO: Double check stream calls for 413.
+        request.pause()
         response.statusCode = 413
         return response.end()
       } else return serverError(error)
@@ -581,7 +591,7 @@ function postAdd (request, response) {
   ], function (error, add) {
     if (error) {
       if (error.limit) {
-        // TODO: Double check stream calls for 413.
+        request.pause()
         response.statusCode = 413
         return response.end()
       }
@@ -721,7 +731,7 @@ function requestEncryptionKey (request, response) {
     if (error) {
       /* istanbul ignore else */
       if (error.limit) {
-        // TODO: Double check stream calls for 413.
+        request.pause()
         response.statusCode = 413
         return response.end()
       } else return serverError(error)
@@ -791,4 +801,175 @@ function requestEncryptionKey (request, response) {
     response.statusCode = 500
     response.end(JSON.stringify({ error: 'server error' }))
   }
+}
+
+var validPull = ajv.compile(require('./schemas/pull'))
+
+// POST /pull
+function pull (request, response) {
+  runWaterfall([
+    function (done) { concatLimit(request, 2048, done) },
+    parse
+  ], function (error, body) {
+    if (error) {
+      /* istanbul ignore else */
+      if (error.limit) {
+        request.pause()
+        response.statusCode = 413
+        return response.end()
+      } else return serverError(error)
+    }
+    // Validate the POST body.
+    if (!validPull(body)) {
+      return invalidRequest('invalid pull')
+    }
+    request.log.info('valid pull')
+    // Respond to the request.
+    var projectDiscoveryKey = body.projectDiscoveryKey
+    var heads = body.heads
+    data.getProjectKeys(projectDiscoveryKey, function (error, keys) {
+      if (error) return serverError(error)
+      if (!keys) {
+        response.statusCode = 204
+        return response.end()
+      }
+      var projectReplicationKey = keys.projectReplicationKey
+      var protocol = new ReplicationProtocol({
+        key: Buffer.from(projectReplicationKey, 'hex')
+      })
+      pump(protocol, response)
+      runSeries(
+        Object.keys(heads).map(function (logPublicKey) {
+          return function (done) {
+            var clientHas = heads[logPublicKey]
+            data.getLastIndex(
+              projectDiscoveryKey, logPublicKey,
+              function (error, serverHas) {
+                if (error) {
+                  request.log.error(error)
+                  return done()
+                }
+                if (serverHas === undefined) return done()
+                if (serverHas > clientHas) {
+                  return sendEnvelopes(clientHas, serverHas)
+                }
+                if (clientHas > serverHas) {
+                  return requestEnvelopes(clientHas, serverHas, done)
+                }
+              }
+            )
+          }
+
+          function sendEnvelopes (clientHas, serverHas, done) {
+            runSeries(
+              range(clientHas, serverHas).map(function (index) {
+                return function (done) {
+                  data.getEnvelope(
+                    projectDiscoveryKey,
+                    logPublicKey,
+                    index,
+                    function (error, outerEnvelope) {
+                      if (error) {
+                        request.log.error(error)
+                        return done()
+                      }
+                      protocol.outerEnvelope(
+                        outerEnvelope,
+                        function (error) {
+                          if (error) return done(error)
+                          request.log.info('sent')
+                          done()
+                        }
+                      )
+                    }
+                  )
+                }
+              })
+            )
+          }
+
+          function requestEnvelopes (clientHas, serverHas, done) {
+            runSeries(
+              range(serverHas, clientHas).map(function (index) {
+                return function (done) {
+                  var reference = { logPublicKey, index }
+                  protocol.request(reference, function (error) {
+                    if (error) return done(error)
+                    request.log.info(reference, 'requested')
+                    done()
+                  })
+                }
+              })
+            )
+          }
+        }),
+        function (error) {
+          if (error) return request.log.error(error)
+          protocol.end()
+        }
+      )
+    })
+  })
+
+  function invalidRequest (message) {
+    response.statusCode = 400
+    response.end(JSON.stringify({ error: message }))
+  }
+
+  function serverError (error) {
+    request.log.error(error)
+    response.statusCode = 500
+    response.end(JSON.stringify({ error: 'server error' }))
+  }
+}
+
+function range (from, to) {
+  var returned = []
+  for (var i = from + 1; i <= to; i++) returned.push(i)
+  return returned
+}
+
+// POST /push
+function push (request, response) {
+  var projectDiscoveryKey = request.query.projectDiscoveryKey
+  if (!/^[a-f0-9]{64}$/.test(projectDiscoveryKey)) {
+    response.statusCode = 400
+    return response.end()
+  }
+  data.getProjectKeys(projectDiscoveryKey, function (error, keys) {
+    if (error) {
+      response.statusCode = 500
+      return response.end()
+    }
+    if (!keys) {
+      response.statusCode = 204
+      return response.end()
+    }
+    var projectReplicationKey = keys.projectReplicationKey
+    var protocol = new ReplicationProtocol({
+      key: Buffer.from(projectReplicationKey, 'hex')
+    })
+    protocol.on('outerEnvelope', function (outerEnvelope) {
+      var logPublicKey = outerEnvelope.logPublicKey
+      var index = outerEnvelope.index
+      if (outerEnvelope.projectDiscoveryKey !== projectDiscoveryKey) {
+        return request.log.error({ logPublicKey, index }, 'project mismatch')
+      }
+      request.log.info({ logPublicKey, index }, 'received envelope')
+      if (index === 0) {
+        data.putProjectPublicKey(
+          projectDiscoveryKey, logPublicKey,
+          function (error) {
+            if (error) return request.log.error(error)
+            request.log.info({ projectDiscoveryKey, logPublicKey }, 'put log public key')
+          }
+        )
+      }
+      data.putEnvelope(outerEnvelope, function (error) {
+        if (error) return request.log.error(error)
+        request.log.info({ logPublicKey, index }, 'put envelope')
+      })
+    })
+    pump(protocol, response)
+  })
 }

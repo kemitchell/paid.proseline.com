@@ -5,27 +5,27 @@ var uuid = require('uuid')
 
 var DELIMITER = s3.DELIMITER
 
-function projectKey (discoveryKey) {
-  assert.strictEqual(typeof discoveryKey, 'string')
-  return `projects/${discoveryKey}`
+function projectKey (projectDiscoveryKey) {
+  assert.strictEqual(typeof projectDiscoveryKey, 'string')
+  return `projects/${projectDiscoveryKey}`
 }
 
-function projectPublicKeyKey (discoveryKey, publicKey) {
-  return `${projectKey(discoveryKey)}/publicKeys/${publicKey}`
+function projectPublicKeyKey (projectDiscoveryKey, logPublicKey) {
+  return `${projectKey(projectDiscoveryKey)}/logPublicKeys/${logPublicKey}`
 }
 
-exports.putProjectPublicKey = function (discoveryKey, publicKey, callback) {
-  assert.strictEqual(typeof discoveryKey, 'string')
-  assert.strictEqual(typeof publicKey, 'string')
+exports.putProjectPublicKey = function (projectDiscoveryKey, logPublicKey, callback) {
+  assert.strictEqual(typeof projectDiscoveryKey, 'string')
+  assert.strictEqual(typeof logPublicKey, 'string')
   assert.strictEqual(typeof callback, 'function')
-  var key = projectPublicKeyKey(discoveryKey, publicKey)
+  var key = projectPublicKeyKey(projectDiscoveryKey, logPublicKey)
   s3.put(key, {}, callback)
 }
 
-exports.listProjectPublicKeys = function (discoveryKey, callback) {
-  assert.strictEqual(typeof discoveryKey, 'string')
+exports.listProjectPublicKeys = function (projectDiscoveryKey, callback) {
+  assert.strictEqual(typeof projectDiscoveryKey, 'string')
   assert.strictEqual(typeof callback, 'function')
-  var prefix = projectPublicKeyKey(discoveryKey, '')
+  var prefix = projectPublicKeyKey(projectDiscoveryKey, '')
   s3.list(prefix, function (error, keys) {
     if (error) return callback(error)
     callback(null, keys.map(function (key) {
@@ -34,22 +34,22 @@ exports.listProjectPublicKeys = function (discoveryKey, callback) {
   })
 }
 
-function envelopeKey (discoveryKey, publicKey, index) {
-  assert.strictEqual(typeof discoveryKey, 'string')
-  assert.strictEqual(typeof publicKey, 'string')
+function envelopeKey (projectDiscoveryKey, logPublicKey, index) {
+  assert.strictEqual(typeof projectDiscoveryKey, 'string')
+  assert.strictEqual(typeof logPublicKey, 'string')
   assert.strictEqual(typeof index, 'number')
   return (
-    projectKey(discoveryKey) +
-    `/envelopes/${publicKey}/${indices.stringify(index)}`
+    projectKey(projectDiscoveryKey) +
+    `/envelopes/${logPublicKey}/${indices.stringify(index)}`
   )
 }
 
-exports.getLastIndex = function (discoveryKey, publicKey, callback) {
-  assert.strictEqual(typeof discoveryKey, 'string')
-  assert.strictEqual(typeof publicKey, 'string')
+exports.getLastIndex = function (projectDiscoveryKey, logPublicKey, callback) {
+  assert.strictEqual(typeof projectDiscoveryKey, 'string')
+  assert.strictEqual(typeof logPublicKey, 'string')
   assert.strictEqual(typeof callback, 'function')
   s3.first(
-    `${projectKey(discoveryKey)}/envelopes/${publicKey}/`,
+    `${projectKey(projectDiscoveryKey)}/envelopes/${logPublicKey}/`,
     function (error, key) {
       if (error) {
         if (error.code === 'NoSuchKey') return callback(null, 0)
@@ -62,57 +62,59 @@ exports.getLastIndex = function (discoveryKey, publicKey, callback) {
   )
 }
 
-exports.getEnvelope = function (discoveryKey, publicKey, index, callback) {
-  assert.strictEqual(typeof discoveryKey, 'string')
-  assert.strictEqual(typeof publicKey, 'string')
+exports.getOuterEnvelope = function (projectDiscoveryKey, logPublicKey, index, callback) {
+  assert.strictEqual(typeof projectDiscoveryKey, 'string')
+  assert.strictEqual(typeof logPublicKey, 'string')
   assert.strictEqual(typeof index, 'number')
   assert.strictEqual(typeof callback, 'function')
-  s3.get(envelopeKey(discoveryKey, publicKey, index), callback)
+  s3.get(envelopeKey(projectDiscoveryKey, logPublicKey, index), callback)
 }
 
-exports.putEnvelope = function (envelope, callback) {
-  assert.strictEqual(typeof envelope, 'object')
-  assert(envelope.hasOwnProperty('message'))
-  assert(envelope.hasOwnProperty('publicKey'))
-  assert(envelope.hasOwnProperty('signature'))
-  assert(envelope.message.hasOwnProperty('project'))
-  assert(envelope.message.hasOwnProperty('index'))
+exports.putOuterEnvelope = function (outerEnvelope, callback) {
+  assert.strictEqual(typeof outerEnvelope, 'object')
+  assert(outerEnvelope.hasOwnProperty('projectDiscoveryKey'))
+  assert(outerEnvelope.hasOwnProperty('logPublicKey'))
+  assert(outerEnvelope.hasOwnProperty('index'))
   assert.strictEqual(typeof callback, 'function')
   s3.put(
     envelopeKey(
-      envelope.message.project,
-      envelope.publicKey,
-      envelope.message.index
+      outerEnvelope.projectDiscoveryKey,
+      outerEnvelope.logPublicKey,
+      outerEnvelope.index
     ),
-    envelope,
+    outerEnvelope,
     callback
   )
 }
 
-function projectKeysKey (discoveryKey) {
-  assert.strictEqual(typeof discoveryKey, 'string')
-  return `${projectKey(discoveryKey)}/keys`
+function projectKeysKey (projectDiscoveryKey) {
+  assert.strictEqual(typeof projectDiscoveryKey, 'string')
+  return `${projectKey(projectDiscoveryKey)}/keys`
 }
 
-exports.getProjectKeys = function (discoveryKey, callback) {
-  assert.strictEqual(typeof discoveryKey, 'string')
+exports.getProjectKeys = function (projectDiscoveryKey, callback) {
+  assert.strictEqual(typeof projectDiscoveryKey, 'string')
   assert.strictEqual(typeof callback, 'function')
-  s3.get(projectKeysKey(discoveryKey), callback)
+  s3.get(projectKeysKey(projectDiscoveryKey), callback)
 }
 
 exports.putProjectKeys = function (options, callback) {
   assert.strictEqual(typeof options, 'object')
-  assert.strictEqual(typeof options.discoveryKey, 'string')
+  assert.strictEqual(typeof options.projectDiscoveryKey, 'string')
   assert.strictEqual(typeof options.replicationKeyCiphertext, 'string')
   assert.strictEqual(typeof options.replicationKeyNonce, 'string')
+  assert.strictEqual(typeof options.readKeyCiphertext, 'string')
+  assert.strictEqual(typeof options.readKeyNonce, 'string')
   assert.strictEqual(typeof options.writeSeedCiphertext, 'string')
   assert.strictEqual(typeof options.writeSeedNonce, 'string')
   assert.strictEqual(typeof options.titleCiphertext, 'string')
   assert.strictEqual(typeof options.titleNonce, 'string')
   assert.strictEqual(typeof callback, 'function')
-  var discoveryKey = options.discoveryKey
+  var projectDiscoveryKey = options.projectDiscoveryKey
   var replicationKeyCiphertext = options.replicationKeyCiphertext
   var replicationKeyNonce = options.replicationKeyNonce
+  var readKeyCiphertext = options.readKeyCiphertext
+  var readKeyNonce = options.readKeyNonce
   var writeSeedCiphertext = options.writeSeedCiphertext
   var writeSeedNonce = options.writeSeedNonce
   var titleCiphertext = options.titleCiphertext
@@ -120,43 +122,45 @@ exports.putProjectKeys = function (options, callback) {
   var record = {
     replicationKeyCiphertext,
     replicationKeyNonce,
+    readKeyCiphertext,
+    readKeyNonce,
     writeSeedCiphertext,
     writeSeedNonce,
     titleCiphertext,
     titleNonce
   }
-  s3.put(projectKeysKey(discoveryKey), record, callback)
+  s3.put(projectKeysKey(projectDiscoveryKey), record, callback)
 }
 
-function projectUserKey (discoveryKey, email) {
-  assert.strictEqual(typeof discoveryKey, 'string')
+function projectUserKey (projectDiscoveryKey, email) {
+  assert.strictEqual(typeof projectDiscoveryKey, 'string')
   assert.strictEqual(typeof email, 'string')
-  return `${projectKey(discoveryKey)}/users/${encodeURIComponent(email)}`
+  return `${projectKey(projectDiscoveryKey)}/users/${encodeURIComponent(email)}`
 }
 
-exports.putProjectUser = function (discoveryKey, email, callback) {
-  assert.strictEqual(typeof discoveryKey, 'string')
+exports.putProjectUser = function (projectDiscoveryKey, email, callback) {
+  assert.strictEqual(typeof projectDiscoveryKey, 'string')
   assert.strictEqual(typeof email, 'string')
   assert.strictEqual(typeof callback, 'function')
   s3.put(
-    projectUserKey(discoveryKey, email),
+    projectUserKey(projectDiscoveryKey, email),
     { date: new Date().toISOString() },
     callback
   )
 }
 
-function userProjectKey (email, discoveryKey) {
+function userProjectKey (email, projectDiscoveryKey) {
   assert.strictEqual(typeof email, 'string')
-  assert.strictEqual(typeof discoveryKey, 'string')
-  return `${userKey(email)}/projects/${discoveryKey}`
+  assert.strictEqual(typeof projectDiscoveryKey, 'string')
+  return `${userKey(email)}/projects/${projectDiscoveryKey}`
 }
 
-exports.putUserProject = function (email, discoveryKey, callback) {
+exports.putUserProject = function (email, projectDiscoveryKey, callback) {
   assert.strictEqual(typeof email, 'string')
-  assert.strictEqual(typeof discoveryKey, 'string')
+  assert.strictEqual(typeof projectDiscoveryKey, 'string')
   assert.strictEqual(typeof callback, 'function')
   s3.put(
-    userProjectKey(email, discoveryKey),
+    userProjectKey(email, projectDiscoveryKey),
     { date: new Date().toISOString() },
     callback
   )
@@ -174,23 +178,23 @@ exports.listUserProjects = function (email, callback) {
   })
 }
 
-function publicKeyKey (publicKey) {
-  assert.strictEqual(typeof publicKey, 'string')
-  return `publicKeys/${publicKey}`
+function logPublicKeyKey (logPublicKey) {
+  assert.strictEqual(typeof logPublicKey, 'string')
+  return `logPublicKeys/${logPublicKey}`
 }
 
-exports.getPublicKey = function (publicKey, callback) {
-  assert.strictEqual(typeof publicKey, 'string')
+exports.getPublicKey = function (logPublicKey, callback) {
+  assert.strictEqual(typeof logPublicKey, 'string')
   assert.strictEqual(typeof callback, 'function')
-  s3.get(publicKeyKey(publicKey), callback)
+  s3.get(logPublicKeyKey(logPublicKey), callback)
 }
 
-exports.putPublicKey = function (publicKey, data, callback) {
-  assert.strictEqual(typeof publicKey, 'string')
+exports.putPublicKey = function (logPublicKey, data, callback) {
+  assert.strictEqual(typeof logPublicKey, 'string')
   assert.strictEqual(typeof data, 'object')
   assert.strictEqual(typeof callback, 'function')
   data.date = new Date().toISOString()
-  s3.put(publicKeyKey(publicKey), data, callback)
+  s3.put(logPublicKeyKey(logPublicKey), data, callback)
 }
 
 function userKey (email) {
