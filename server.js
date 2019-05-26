@@ -1,17 +1,10 @@
 var http = require('http')
 var httpHandler = require('./http')
 var pino = require('pino')
-var websocketHandler = require('./ws')
-var websocketStream = require('websocket-stream')
 
 var log = pino()
 
 var httpServer = http.createServer(httpHandler(log))
-
-websocketStream.createServer({
-  server: httpServer,
-  perMessageDeflate: false
-}, websocketHandler(log.child({ subsytem: 'ws' })))
 
 function trap () {
   log.info('signal')
