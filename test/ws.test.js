@@ -1,4 +1,5 @@
 var ReplicationProtocol = require('../protocol')
+var assert = require('assert')
 var confirmSubscribe = require('./confirm-subscribe')
 var crypto = require('@proseline/crypto')
 var invite = require('./invite')
@@ -31,7 +32,7 @@ tape.test('connect to invalid path', function (test) {
   })
 })
 
-tape.only('Replication', function (test) {
+tape('Replication', function (test) {
   server(function (port, done) {
     // User
     var clientKeyPair = crypto.signingKeyPair()
@@ -114,15 +115,9 @@ tape.only('Replication', function (test) {
     }
 
     function sendEnvelopeToServer (done) {
-      var socket = websocketStream(
-        'ws://localhost:' + port + '/' + projectDiscoveryKey,
-        wsOptions
-      )
-      var protocol = new ReplicationProtocol({
-        key: Buffer.from(replicationKey, 'hex')
-      })
-      protocol.once('handshake', function () {
-        test.ok('received handshake')
+      replicate({
+        projectDiscoveryKey, replicationKey, test, port
+      }, function (socket, protocol) {
         protocol.offer({ logPublicKey, index }, function (error) {
           test.ifError(error, 'no error offering to server')
         })
@@ -137,54 +132,67 @@ tape.only('Replication', function (test) {
           )
           protocol.outerEnvelope(outerEnvelope, function (error) {
             test.ifError(error, 'no error sending envelope')
-            socket.destroy()
+            protocol.end()
+            socket.end()
             done()
           })
         })
       })
-      socket.pipe(protocol).pipe(socket)
-      protocol.handshake(function (error) {
-        test.ifError(error, 'no error sending handshake')
-      })
     }
 
     function getEnvelopeFromServer (done) {
-      setTimeout(function () {
-        var socket = websocketStream(
-          'ws://localhost:' + port + '/' + projectDiscoveryKey,
-          wsOptions
-        )
-        var protocol = new ReplicationProtocol({
-          key: Buffer.from(replicationKey, 'hex')
-        })
-        protocol.handshake(function (error) {
-          test.ifError(error, 'no error sending handshake')
-        })
-        protocol.once('handshake', function () {
-          protocol.once('offer', function (offer) {
-            test.equal(
-              offer.logPublicKey, logPublicKey,
-              'server offers public key'
+      replicate({
+        projectDiscoveryKey, replicationKey, test, port
+      }, function (socket, protocol) {
+        protocol.once('offer', function (offer) {
+          test.equal(
+            offer.logPublicKey, logPublicKey,
+            'server offers public key'
+          )
+          test.equal(
+            offer.index, index,
+            'server offers index'
+          )
+          protocol.once('outerEnvelope', function (received) {
+            test.deepEqual(
+              received, outerEnvelope,
+              'received envelope from server'
             )
-            test.equal(
-              offer.index, index,
-              'server offers index'
-            )
-            protocol.once('outerEnvelope', function (received) {
-              test.deepEqual(
-                received, outerEnvelope,
-                'received envelope from server'
-              )
-              socket.destroy()
-              done()
-            })
-            protocol.request(offer, function (error) {
-              test.ifError(error, 'no error requesting envelope')
-            })
+            protocol.end()
+            socket.end()
+            done()
+          })
+          protocol.request(offer, function (error) {
+            test.ifError(error, 'no error requesting envelope')
           })
         })
-        socket.pipe(protocol).pipe(socket)
-      }, 100)
+      })
     }
   })
 })
+
+function replicate (options, done) {
+  assert(typeof options === 'object')
+  assert(typeof done === 'function')
+  var projectDiscoveryKey = options.projectDiscoveryKey
+  assert(typeof projectDiscoveryKey === 'string')
+  var port = options.port
+  assert(Number.isSafeInteger(port))
+  var replicationKey = options.replicationKey
+  assert(typeof replicationKey === 'string')
+  var test = options.test
+  assert(typeof test === 'object')
+  var socket = websocketStream(
+    'ws://localhost:' + port + '/' + projectDiscoveryKey,
+    wsOptions
+  )
+  var key = Buffer.from(replicationKey, 'hex')
+  var protocol = new ReplicationProtocol({ key })
+  protocol.once('handshake', function () {
+    done(socket, protocol)
+  })
+  protocol.handshake(function (error) {
+    test.ifError(error, 'no error sending handshake')
+  })
+  socket.pipe(protocol).pipe(socket)
+}
