@@ -16,7 +16,6 @@ var stringify = require('fast-json-stable-stringify')
 var stripe = require('./stripe')
 var url = require('url')
 var uuid = require('uuid')
-var xor = require('./xor')
 
 var STYLESHEET = '/styles.css'
 var STYLES = fs.readFileSync('styles.css')
