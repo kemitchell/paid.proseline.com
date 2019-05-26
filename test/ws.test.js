@@ -1,214 +1,73 @@
+var ReplicationProtocol = require('../protocol')
 var confirmSubscribe = require('./confirm-subscribe')
-var duplexify = require('duplexify')
+var crypto = require('@proseline/crypto')
+var invite = require('./invite')
 var keyserverProtocol = require('../keyserver-protocol')
-var makeKeyPair = require('./make-key-pair')
-var multiplex = require('multiplex')
-var protocol = require('proseline-protocol')
 var requestEncryptionKey = require('./request-encryption-key')
 var runSeries = require('run-series')
 var server = require('./server')
-var sign = require('./sign')
-var sodium = require('sodium-universal')
+var stringify = require('fast-json-stable-stringify')
 var subscribe = require('./subscribe')
 var tape = require('tape')
 var websocketStream = require('websocket-stream')
 
-tape.test('Connect to WebSocket', function (test) {
+var wsOptions = { perMessageDeflate: false }
+
+tape.test('connect to invalid path', function (test) {
   server(function (port, done) {
-    var ws = websocketStream('ws://localhost:' + port, wsOptions)
+    var receivedData = false
+    websocketStream('ws://localhost:' + port, wsOptions)
       .once('error', function (error) {
         test.ifError(error)
       })
-      .once('data', function () {
-        test.pass('received data')
-        ws.destroy()
+      .once('data', function (chunk) {
+        receivedData = true
+      })
+      .once('end', function () {
+        test.assert(!receivedData, 'no data')
         done()
         test.end()
       })
   })
 })
 
-tape.only('Invitations', function (test) {
-  server(function (port, done) {
-    var keyPair = makeKeyPair()
-    var email = 'test@example.com'
-    var password = 'a terrible password'
-    subscribe({ keyPair, password, email, port }, function (subscribeMessage) {
-      confirmSubscribe(subscribeMessage, port, null, function () {
-        requestEncryptionKey(
-          email, password, port,
-          function (error, statusCode, result) {
-            test.ifError(error)
-            test.strictEqual(statusCode, 200)
-            var clientWrappedKey = result.clientWrappedKey
-            var clientStretchedPassword = result.clientStretchedPassword
-            var clientResult = keyserverProtocol.client.request({
-              clientStretchedPassword,
-              clientWrappedKey
-            })
-            var encryptionKey = clientResult.encryptionKey
-            var replicationKey = makeRandom(32)
-            var writeSeed = makeRandom(32)
-            var title = 'test project'
-            var firstWS = makeWebsocket(port)
-            var firstPlex = multiplex()
-            var firstProtocol = makeInvitationProtocol(firstPlex)
-            var invitation = makeInvitation(keyPair, {
-              replicationKey, writeSeed, title, encryptionKey
-            })
-            connect(firstPlex, firstWS)
-            firstProtocol.invitation(invitation, function (error) {
-              test.ifError(error, 'no send invitation error')
-              test.pass('sent invitation')
-              var secondWS = makeWebsocket(port)
-              var secondPlex = testErrors(multiplex())
-              var secondProtocol = makeInvitationProtocol(secondPlex)
-              var request = makeInvitationRequest(email, keyPair)
-              secondProtocol.request(request, function (error) {
-                test.ifError(error, 'no request send error')
-                test.pass('sent request')
-              })
-              secondProtocol.once('invitation', function (invitation) {
-                test.pass('received invitation')
-                var message = invitation.message
-                test.equal(
-                  message.replicationKey, replicationKey.toString('hex'),
-                  'received replication key'
-                )
-                test.equal(
-                  message.writeSeed, writeSeed.toString('hex'),
-                  'received received write seed'
-                )
-                test.equal(
-                  message.title, title,
-                  'received title'
-                )
-                firstWS.destroy()
-                secondWS.destroy()
-                test.end()
-                done()
-              })
-              connect(secondPlex, secondWS)
-            })
-          }
-        )
-      })
-    })
-  })
-
-  function testErrors (stream) {
-    stream.once('error', function (error) {
-      test.ifError(error, 'no stream error')
-    })
-    return stream
-  }
-})
-
-function makeInvitationProtocol (plex) {
-  var transport = plex.createSharedStream('invitation')
-  var protocolStream = protocol.Invitation()
-  connect(protocolStream, transport)
-  return protocolStream
-}
-
-function makeInvitationRequest (email, keyPair) {
-  return makeMessage(keyPair, { date: new Date().toISOString(), email })
-}
-
-function makeInvitation (keyPair, options) {
-  var replicationKey = options.replicationKey
-  var replicationKeyNonce = randomNonce()
-  var writeSeed = options.writeSeed
-  var writeSeedNonce = randomNonce()
-  var title = options.title
-  var titleNonce = randomNonce()
-  var encryptionKey = options.encryptionKey
-  return makeMessage(keyPair, {
-    replicationKeyCiphertext: encrypt(
-      replicationKey, replicationKeyNonce, encryptionKey
-    ).toString('hex'),
-    replicationKeyNonce: replicationKeyNonce.toString('hex'),
-    writeSeedCiphertext: encrypt(
-      writeSeed, writeSeedNonce, encryptionKey
-    ).toString('hex'),
-    writeSeedNonce: writeSeedNonce.toString('hex'),
-    titleCiphertext: encrypt(
-      Buffer.from(title), titleNonce, encryptionKey
-    ).toString('hex'),
-    titleNonce: titleNonce.toString('hex')
-  })
-}
-
-function makeMessage (keyPair, message) {
-  return {
-    publicKey: keyPair.publicKey.toString('hex'),
-    signature: sign(message, keyPair.secretKey).toString('hex'),
-    message
-  }
-}
-
-function makeRandom (bytes) {
-  var returned = Buffer.alloc(bytes)
-  sodium.randombytes_buf(returned)
-  return returned
-}
-
-tape('invitation for request without subscription', function (test) {
-  server(function (port, done) {
-    var email = 'test@example.com'
-    var keyPair = makeKeyPair()
-    var ws = makeWebsocket(port)
-    var plex = multiplex()
-    connect(plex, ws)
-    var invitation = makeInvitationProtocol(plex)
-    var request = makeInvitationRequest(email, keyPair)
-    invitation.request(request, function (error) {
-      test.ifError(error, 'no request send error')
-      test.pass('sent request')
-      setTimeout(function () {
-        ws.destroy()
-        test.end()
-        done()
-      }, 100)
-    })
-    invitation.once('invitation', function () {
-      test.fail('received invitation')
-    })
-  })
-})
-
-tape('Replication', function (test) {
+tape.only('Replication', function (test) {
   server(function (port, done) {
     // User
-    var keyPair = makeKeyPair()
+    var clientKeyPair = crypto.signingKeyPair()
+    var logKeyPair = crypto.signingKeyPair()
+    var logPublicKey = logKeyPair.publicKey
     var email = 'test@example.com'
     var password = 'a terrible password'
 
     // Project
-    var replicationKey = makeRandom(32)
-    var discoveryKey = hash(replicationKey).toString('hex')
-    var writeSeed = makeRandom(32)
-    var writeKeyPair = keyPairFromSeed(writeSeed)
-    var title = 'test project'
+    var replicationKey = crypto.projectReplicationKey()
+    var projectDiscoveryKey = crypto.discoveryKey(replicationKey)
+    var readKey = crypto.projectReadKey()
+    var writeSeed = crypto.signingKeyPairSeed()
+    var writeKeyPair = crypto.signingKeyPairFromSeed(writeSeed)
 
     // First Entry
-    var publicKey = keyPair.publicKey.toString('hex')
     var index = 0
-    var message = {
-      project: discoveryKey,
-      index: 0,
-      body: {
-        type: 'intro',
-        name: 'John Doe',
-        device: 'laptop',
-        timestamp: new Date().toISOString()
-      }
+    var entry = {
+      type: 'intro',
+      name: 'John Doe',
+      device: 'laptop',
+      timestamp: new Date().toISOString()
     }
-    var envelope = {
-      message,
-      publicKey,
-      signature: sign(message, keyPair.secretKey).toString('hex'),
-      authorization: sign(message, writeKeyPair.secretKey).toString('hex')
+    var innerEnvelope = { entry }
+    crypto.sign(innerEnvelope, logKeyPair.secretKey, 'logSignature')
+    crypto.sign(innerEnvelope, writeKeyPair.secretKey, 'projectSignature')
+    var nonce = crypto.randomNonce()
+    var stringified = stringify(entry)
+    var outerEnvelope = {
+      projectDiscoveryKey,
+      logPublicKey,
+      index: 0,
+      nonce,
+      encryptedInnerEnvelope: crypto.encryptUTF8(
+        stringified, nonce, readKey
+      )
     }
 
     runSeries([
@@ -221,413 +80,111 @@ tape('Replication', function (test) {
     })
 
     function createSubscription (done) {
-      subscribe({ keyPair, email, password, port }, function (subscribeMessage) {
-        confirmSubscribe(subscribeMessage, port, null, done)
+      var subscribeOptions = {
+        keyPair: clientKeyPair,
+        email,
+        password,
+        port
+      }
+      subscribe(subscribeOptions, function (subscribeMessage) {
+        confirmSubscribe(subscribeMessage, port, null, function () {
+          requestEncryptionKey(
+            email, password, port,
+            function (error, statusCode, result) {
+              test.ifError(error, 'no error')
+              test.strictEqual(statusCode, 200, 'encryption key: responds 200')
+              var clientWrappedKey = result.clientWrappedKey
+              var clientStretchedPassword = result.clientStretchedPassword
+              var clientResult = keyserverProtocol.client.request({
+                clientStretchedPassword,
+                clientWrappedKey
+              })
+              var accountEncryptionKey = clientResult.encryptionKey.toString('hex')
+              invite({
+                clientKeyPair,
+                accountEncryptionKey,
+                replicationKey,
+                readKey,
+                writeSeed
+              }, port, test, done)
+            }
+          )
+        })
       })
     }
 
     function sendEnvelopeToServer (done) {
-      var firstWS = makeWebsocket(port)
-      var plex = multiplex()
-      var invitation = makeInvitationProtocol(plex)
-      var invite = makeInvitation(keyPair, { replicationKey, writeSeed, title })
-      invitation.invitation(invite, function (error) {
-        test.ifError(error, 'no send invitation error')
-        setTimeout(function () {
-          var replication = makeReplicationProtocol({
-            discoveryKey,
-            plex,
-            replicationKey,
-            publicKey: writeKeyPair.publicKey,
-            secretKey: writeKeyPair.secretKey
-          })
-          replication.handshake(function (error) {
-            test.ifError(error, 'no error sending handshake')
-          })
-          replication.once('handshake', function () {
-            replication.offer({ publicKey, index }, function (error) {
-              test.ifError(error, 'no error offering to server')
-            })
-            replication.once('request', function (request) {
-              test.equal(
-                request.publicKey, publicKey,
-                'server requests public key'
-              )
-              test.equal(
-                request.index, index,
-                'server requests index'
-              )
-              replication.envelope(envelope, function (error) {
-                test.ifError(error, 'no error sending envelope')
-                firstWS.destroy()
-                done()
-              })
-            })
-          })
-        }, 100)
-      })
-      connect(plex, firstWS)
-    }
-
-    function getEnvelopeFromServer (done) {
-      setTimeout(function () {
-        var secondWS = makeWebsocket(port)
-        var plex = multiplex()
-        var replication = makeReplicationProtocol({
-          discoveryKey,
-          plex,
-          replicationKey,
-          publicKey: writeKeyPair.publicKey,
-          secretKey: writeKeyPair.secretKey
-        })
-        replication.handshake(function (error) {
-          test.ifError(error, 'no error sending handshake')
-        })
-        replication.once('handshake', function () {
-          replication.once('offer', function (offer) {
-            test.equal(
-              offer.publicKey, publicKey,
-              'server offers public key'
-            )
-            test.equal(
-              offer.index, index,
-              'server offers index'
-            )
-            replication.once('envelope', function (received) {
-              test.deepEqual(
-                received, envelope,
-                'received envelope from server'
-              )
-              secondWS.destroy()
-              done()
-            })
-            replication.request(offer, function (error) {
-              test.ifError(error, 'no error requesting envelope')
-            })
-          })
-        })
-        connect(plex, secondWS)
-      }, 100)
-    }
-  })
-})
-
-function hash (buffer) {
-  var digest = Buffer.alloc(sodium.crypto_generichash_BYTES)
-  sodium.crypto_generichash(digest, buffer)
-  return digest
-}
-
-function connect (a, b) {
-  a.pipe(b).pipe(a)
-}
-
-var wsOptions = { perMessageDeflate: false }
-
-function makeWebsocket (port) {
-  return websocketStream('ws://localhost:' + port, wsOptions)
-}
-
-function keyPairFromSeed (seed) {
-  var publicKey = Buffer.alloc(sodium.crypto_sign_PUBLICKEYBYTES)
-  var secretKey = Buffer.alloc(sodium.crypto_sign_SECRETKEYBYTES)
-  sodium.crypto_sign_seed_keypair(publicKey, secretKey, seed)
-  return { secretKey, publicKey }
-}
-
-function makeReplicationProtocol (options) {
-  var transport = options.plex.createSharedStream(options.discoveryKey)
-  var protocolStream = protocol.Replication({
-    encryptionKey: options.replicationKey,
-    publicKey: options.publicKey,
-    secretKey: options.secretKey
-  })
-  connect(protocolStream, transport)
-  return protocolStream
-}
-
-tape('replicate unknown project', function (test) {
-  server(function (port, done) {
-    // Project
-    var replicationKey = makeRandom(32)
-    var discoveryKey = hash(replicationKey).toString('hex')
-    var writeSeed = makeRandom(32)
-    var writeKeyPair = keyPairFromSeed(writeSeed)
-
-    var ws = makeWebsocket(port)
-      .once('close', function () {
-        test.pass('ws closed')
-        plex.destroy()
-      })
-    var plex = multiplex()
-    var transport = plex.createSharedStream(discoveryKey)
-    var replication = protocol.Replication({
-      encryptionKey: replicationKey,
-      publicKey: writeKeyPair.publicKey,
-      secretKey: writeKeyPair.secretKey
-    })
-    connect(replication, transport)
-    replication.handshake(function (error) {
-      test.ifError(error, 'no handshake error')
-    })
-    transport.once('error', function (error) {
-      test.assert(
-        /destroyed/i.test(error.message),
-        'destroyed'
+      var socket = websocketStream(
+        'ws://localhost:' + port + '/' + projectDiscoveryKey,
+        wsOptions
       )
-      replication.destroy()
-      ws.destroy()
-      test.end()
-      done()
-    })
-    connect(plex, ws)
-  })
-})
-
-tape('invitations across websockets', function (test) {
-  server(function (port, done) {
-    // User
-    var email = 'test@example.com'
-    var password = 'a terrible password'
-    var keyPair = makeKeyPair()
-    var title = 'test project'
-
-    // Project
-    var replicationKey = makeRandom(32)
-    var discoveryKey = hash(replicationKey).toString('hex')
-    var writeSeed = makeRandom(32)
-    var writeKeyPair = keyPairFromSeed(writeSeed)
-
-    runSeries([
-      createSubscription,
-      // Connect a WebSocket client that expects to try and fail
-      // to replicate the project, then receives an offer to
-      // successfully replicate the same project.
-      connectAndAwaitReplication,
-      // Connect a WebSocket client that sends the invitation
-      // that enables to server to replicate the project.
-      connectAndInvite
-    ])
-
-    function createSubscription (done) {
-      subscribe({ keyPair, email, password, port }, function (message) {
-        confirmSubscribe(message, port, null, done)
+      var protocol = new ReplicationProtocol({
+        key: Buffer.from(replicationKey, 'hex')
       })
-    }
-
-    function connectAndAwaitReplication (done) {
-      var ws = makeWebsocket(port)
-      var plex = multiplex()
-      makeInvitationProtocol(plex)
-      var firstReplicationTransport = duplexify(
-        plex.createStream(discoveryKey),
-        plex.receiveStream(discoveryKey)
-      )
-      var firstReplication = protocol.Replication({
-        encryptionKey: replicationKey,
-        publicKey: writeKeyPair.publicKey,
-        secretKey: writeKeyPair.secretKey
-      })
-      plex.once('stream', function (receiveStream, id) {
-        test.equal(
-          discoveryKey, id,
-          'offered replication'
-        )
-        var secondReplicationTransport = duplexify(
-          plex.createStream(discoveryKey),
-          receiveStream
-        )
-        var secondReplication = protocol.Replication({
-          encryptionKey: replicationKey,
-          publicKey: writeKeyPair.publicKey,
-          secretKey: writeKeyPair.secretKey
-        })
-        secondReplication.handshake(function (error) {
-          test.ifError(error, 'no second handshake error')
-        })
-        secondReplication.once('handshake', function () {
-          test.pass('received second handshake')
-          ws.destroy()
-          finish()
-        })
-        connect(secondReplication, secondReplicationTransport)
-      })
-      firstReplication.handshake(function (error) {
-        test.ifError(error, 'no handshake error')
-      })
-      firstReplicationTransport.once('error', function (error) {
-        test.assert(
-          /destroyed/i.test(error.message),
-          'destroyed'
-        )
-        done()
-      })
-      connect(firstReplication, firstReplicationTransport)
-      connect(plex, ws)
-    }
-
-    function connectAndInvite (done) {
-      var ws = makeWebsocket(port)
-      var plex = multiplex()
-      connect(plex, ws)
-      var invitation = makeInvitationProtocol(plex)
-      var invite = makeInvitation(keyPair, { replicationKey, writeSeed, title })
-      invitation.invitation(invite, function (error) {
-        test.ifError(error, 'no send invitation error')
-        test.pass('sent invitation')
-        setTimeout(function () {
-          ws.destroy()
-          done()
-        }, 100)
-      })
-    }
-
-    function finish () {
-      test.end()
-      done()
-    }
-  })
-})
-
-tape('envelopes across sockets', function (test) {
-  server(function (port, done) {
-    // User
-    var keyPair = makeKeyPair()
-    var email = 'test@example.com'
-    var password = 'a terrible password'
-
-    // Project
-    var replicationKey = makeRandom(32)
-    var discoveryKey = hash(replicationKey).toString('hex')
-    var writeSeed = makeRandom(32)
-    var writeKeyPair = keyPairFromSeed(writeSeed)
-    var title = 'test project'
-
-    // First Entry
-    var publicKey = keyPair.publicKey.toString('hex')
-    var index = 0
-    var message = {
-      project: discoveryKey,
-      index: 0,
-      body: {
-        type: 'intro',
-        name: 'John Doe',
-        device: 'laptop',
-        timestamp: new Date().toISOString()
-      }
-    }
-    var envelope = {
-      message,
-      publicKey,
-      signature: sign(message, keyPair.secretKey).toString('hex'),
-      authorization: sign(message, writeKeyPair.secretKey).toString('hex')
-    }
-
-    runSeries([
-      createSubscription,
-      inviteServerAndAwaitOffer,
-      sendEnvelope
-    ])
-
-    function finish () {
-      test.end()
-      done()
-    }
-
-    function createSubscription (done) {
-      subscribe({ keyPair, email, password, port }, function (subscribeMessage) {
-        confirmSubscribe(subscribeMessage, port, null, done)
-      })
-    }
-
-    function inviteServerAndAwaitOffer (done) {
-      var ws = makeWebsocket(port)
-      var plex = multiplex()
-      var invitation = makeInvitationProtocol(plex)
-      var invite = makeInvitation(keyPair, { replicationKey, writeSeed, title })
-      invitation.invitation(invite, function (error) {
-        test.ifError(error, 'no send invitation error')
-        setTimeout(function () {
-          var replication = makeReplicationProtocol({
-            discoveryKey,
-            plex,
-            replicationKey,
-            publicKey: writeKeyPair.publicKey,
-            secretKey: writeKeyPair.secretKey
-          })
-          replication.handshake(function (error) {
-            test.ifError(error, 'no error sending handshake')
-          })
-          replication.once('handshake', function () {
-            replication.once('offer', function (offer) {
-              test.equal(
-                offer.publicKey, publicKey,
-                'server offers public key'
-              )
-              test.equal(
-                offer.index, index,
-                'server offers index'
-              )
-              ws.destroy()
-              finish()
-            })
-          })
-          done()
-        }, 100)
-      })
-      connect(plex, ws)
-    }
-
-    function sendEnvelope (done) {
-      var ws = makeWebsocket(port)
-      var plex = multiplex()
-      var replication = makeReplicationProtocol({
-        discoveryKey,
-        plex,
-        replicationKey,
-        publicKey: writeKeyPair.publicKey,
-        secretKey: writeKeyPair.secretKey
-      })
-      replication.handshake(function (error) {
-        test.ifError(error, 'no error sending handshake')
-      })
-      replication.once('handshake', function () {
-        replication.offer({ publicKey, index }, function (error) {
+      protocol.once('handshake', function () {
+        test.ok('received handshake')
+        protocol.offer({ logPublicKey, index }, function (error) {
           test.ifError(error, 'no error offering to server')
         })
-        replication.once('request', function (request) {
+        protocol.once('request', function (request) {
           test.equal(
-            request.publicKey, publicKey,
+            request.logPublicKey, logPublicKey,
             'server requests public key'
           )
           test.equal(
             request.index, index,
             'server requests index'
           )
-          replication.envelope(envelope, function (error) {
+          protocol.outerEnvelope(outerEnvelope, function (error) {
             test.ifError(error, 'no error sending envelope')
-            ws.destroy()
+            socket.destroy()
             done()
           })
         })
       })
-      connect(plex, ws)
+      socket.pipe(protocol).pipe(socket)
+      protocol.handshake(function (error) {
+        test.ifError(error, 'no error sending handshake')
+      })
+    }
+
+    function getEnvelopeFromServer (done) {
+      setTimeout(function () {
+        var socket = websocketStream(
+          'ws://localhost:' + port + '/' + projectDiscoveryKey,
+          wsOptions
+        )
+        var protocol = new ReplicationProtocol({
+          key: Buffer.from(replicationKey, 'hex')
+        })
+        protocol.handshake(function (error) {
+          test.ifError(error, 'no error sending handshake')
+        })
+        protocol.once('handshake', function () {
+          protocol.once('offer', function (offer) {
+            test.equal(
+              offer.logPublicKey, logPublicKey,
+              'server offers public key'
+            )
+            test.equal(
+              offer.index, index,
+              'server offers index'
+            )
+            protocol.once('outerEnvelope', function (received) {
+              test.deepEqual(
+                received, outerEnvelope,
+                'received envelope from server'
+              )
+              socket.destroy()
+              done()
+            })
+            protocol.request(offer, function (error) {
+              test.ifError(error, 'no error requesting envelope')
+            })
+          })
+        })
+        socket.pipe(protocol).pipe(socket)
+      }, 100)
     }
   })
 })
-
-function encrypt (plaintext, nonce, key) {
-  var ciphertext = Buffer.alloc(
-    plaintext.length + sodium.crypto_secretbox_MACBYTES
-  )
-  sodium.crypto_secretbox_easy(
-    ciphertext, plaintext, nonce, key
-  )
-  return ciphertext
-}
-
-function randomNonce () {
-  var nonce = Buffer.alloc(sodium.crypto_secretbox_NONCEBYTES)
-  sodium.randombytes_buf(nonce)
-  return nonce
-}
