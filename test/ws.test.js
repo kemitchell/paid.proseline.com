@@ -196,3 +196,23 @@ function replicate (options, done) {
   })
   socket.pipe(protocol).pipe(socket)
 }
+
+tape('replicate unknown project', function (test) {
+  server(function (port, done) {
+    var replicationKey = crypto.projectReplicationKey()
+    var projectDiscoveryKey = crypto.discoveryKey(replicationKey)
+    var receivedData = false
+    websocketStream(
+      'ws://localhost:' + port + '/' + projectDiscoveryKey,
+      wsOptions
+    )
+      .on('data', function () {
+        receivedData = true
+      })
+      .once('close', function () {
+        test.assert(!receivedData, 'received no data')
+        test.end()
+        done()
+      })
+  })
+})
