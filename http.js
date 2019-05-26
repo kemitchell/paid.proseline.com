@@ -773,7 +773,7 @@ function requestEncryptionKey (request, response) {
             serverStretchedPassword,
             serverWrappedKey
           })
-          var clientWrappedKey = requestResult.clientWrappedKey
+          var clientWrappedKey = requestResult.clientWrappedKey.toString('hex')
           response.end(JSON.stringify({ clientWrappedKey }))
         }
       )
