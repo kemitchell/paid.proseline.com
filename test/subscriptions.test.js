@@ -4,10 +4,9 @@ var concat = require('simple-concat')
 var confirmCancel = require('./confirm-cancel')
 var confirmSubscribe = require('./confirm-subscribe')
 var constants = require('./constants')
+var crypto = require('@proseline/crypto')
 var http = require('http')
-var makeKeyPair = require('./make-key-pair')
 var server = require('./server')
-var sign = require('./sign')
 var subscribe = require('./subscribe')
 var tape = require('tape')
 
@@ -95,7 +94,7 @@ tape('POST /subscribe with invalid signature', function (test) {
 
 tape('POST /subscribe with expired order', function (test) {
   server(function (port, done) {
-    var keyPair = makeKeyPair()
+    var keyPair = crypto.signingKeyPair()
     var date = new Date()
     date.setDate(date.getDate() - 30)
     var message = {
@@ -105,9 +104,9 @@ tape('POST /subscribe with expired order', function (test) {
     }
     var order = {
       publicKey: keyPair.publicKey.toString('hex'),
-      signature: sign(message, keyPair.secretKey).toString('hex'),
       message
     }
+    crypto.sign(order, keyPair.secretKey, 'signature', 'message')
     http.request({
       method: 'POST',
       path: '/subscribe',
@@ -317,7 +316,7 @@ tape('POST /subscribe after subscribing', function (test) {
     var password = 'a terrible password'
     subscribe({ email, password, port }, function (subscribeMessage) {
       confirmSubscribe(subscribeMessage, port, null, function () {
-        var keyPair = makeKeyPair()
+        var keyPair = crypto.signingKeyPair()
         var message = {
           token: constants.VALID_STRIPE_SOURCE,
           date: new Date().toISOString(),
@@ -325,9 +324,9 @@ tape('POST /subscribe after subscribing', function (test) {
         }
         var order = {
           publicKey: keyPair.publicKey.toString('hex'),
-          signature: sign(message, keyPair.secretKey).toString('hex'),
           message
         }
+        crypto.sign(order, keyPair.secretKey, 'signature', 'message')
         http.request({
           method: 'POST',
           path: '/subscribe',

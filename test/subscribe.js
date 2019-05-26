@@ -4,10 +4,9 @@ var crypto = require('@proseline/crypto')
 var http = require('http')
 var keyserverProtocol = require('../keyserver-protocol')
 var mailgun = require('../mailgun/test').events
-var makeKeyPair = require('./make-key-pair')
 
 module.exports = function (options, callback) {
-  var keyPair = options.keyPair || makeKeyPair()
+  var keyPair = options.keyPair || crypto.signingKeyPair()
   var email = options.email
   var port = options.port
   var test = options.test

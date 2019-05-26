@@ -1,11 +1,10 @@
 var concat = require('simple-concat')
+var crypto = require('@proseline/crypto')
 var http = require('http')
 var keyserverProtocol = require('../keyserver-protocol')
-var makeKeyPair = require('./make-key-pair')
-var sign = require('./sign')
 
 module.exports = function (email, password, port, callback) {
-  var keyPair = makeKeyPair()
+  var keyPair = crypto.signingKeyPair()
   var result = keyserverProtocol.client.login({ email, password })
   var clientStretchedPassword = result.clientStretchedPassword
   var authenticationToken = result.authenticationToken.toString('hex')
@@ -16,9 +15,9 @@ module.exports = function (email, password, port, callback) {
   }
   var body = {
     publicKey: keyPair.publicKey.toString('hex'),
-    signature: sign(message, keyPair.secretKey).toString('hex'),
     message
   }
+  crypto.sign(body, keyPair.secretKey, 'signature', 'message')
   http.request({ path: '/encryptionkey', method: 'POST', port })
     .once('response', function (response) {
       var statusCode = response.statusCode
