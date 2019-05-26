@@ -7,7 +7,7 @@ var server = require('./server')
 var subscribe = require('./subscribe')
 var tape = require('tape')
 
-tape.only('invite', function (test) {
+tape('invite', function (test) {
   server(function (port, done) {
     var keyPair = crypto.signingKeyPair()
     var email = 'test@example.com'
@@ -39,7 +39,7 @@ tape.only('invite', function (test) {
               title
             })
             http.request({
-              path: '/invite',
+              path: '/invites',
               method: 'POST',
               port
             })
