@@ -3,6 +3,7 @@ var Busboy = require('busboy')
 var ReplicationProtocol = require('./protocol')
 var assert = require('assert')
 var concatLimit = require('simple-concat-limit')
+var crypto = require('@proseline/crypto')
 var data = require('./data')
 var fs = require('fs')
 var keyserverProtocol = require('./keyserver-protocol')
@@ -13,8 +14,6 @@ var runSeries = require('run-series')
 var runWaterfall = require('run-waterfall')
 var send = require('./send')
 var simpleConcat = require('simple-concat')
-var sodium = require('sodium-native')
-var stringify = require('fast-json-stable-stringify')
 var stripe = require('./stripe')
 var url = require('url')
 var uuid = require('uuid')
@@ -117,7 +116,7 @@ function postSubscribe (request, response) {
       return invalidRequest(response, 'invalid order')
     }
     request.log.info('valid order')
-    if (!validSignature(order)) {
+    if (!crypto.verify(order, order.publicKey, 'signature', 'message')) {
       return invalidRequest(response, 'invalid signature')
     }
     request.log.info('valid signature')
@@ -218,9 +217,7 @@ function postSubscribe (request, response) {
 }
 
 function randomCapability () {
-  var returned = Buffer.alloc(32)
-  sodium.randombytes_buf(returned)
-  return returned.toString('hex')
+  return crypto.random(32)
 }
 
 function validCapability (string) {
@@ -234,14 +231,6 @@ function unexpired (body) {
   var date = new Date(body.message.date)
   var difference = now - date
   return difference < EXPIRATION_PERIOD
-}
-
-function validSignature (order) {
-  return sodium.crypto_sign_verify_detached(
-    Buffer.from(order.signature, 'hex'),
-    Buffer.from(stringify(order.message)),
-    Buffer.from(order.publicKey, 'hex')
-  )
 }
 
 function notFound (request, response) {
@@ -601,7 +590,7 @@ function postAdd (request, response) {
       return invalidRequest('invalid add')
     }
     request.log.info('valid request')
-    if (!validSignature(add)) {
+    if (!crypto.verify(add, add.publicKey, 'signature', 'message')) {
       return invalidRequest('invalid signature')
     }
     request.log.info('valid signature')
@@ -740,7 +729,7 @@ function requestEncryptionKey (request, response) {
       return invalidRequest('invalid request')
     }
     request.log.info('valid request')
-    if (!validSignature(body)) {
+    if (!crypto.verify(body, body.publicKey, 'signature', 'message')) {
       return invalidRequest('invalid signature')
     }
     request.log.info('valid signature')
