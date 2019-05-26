@@ -1,10 +1,10 @@
 var concat = require('simple-concat')
 var constants = require('./constants')
+var crypto = require('@proseline/crypto')
 var http = require('http')
 var keyserverProtocol = require('../keyserver-protocol')
 var mailgun = require('../mailgun/test').events
 var makeKeyPair = require('./make-key-pair')
-var sign = require('./sign')
 
 module.exports = function (options, callback) {
   var keyPair = options.keyPair || makeKeyPair()
@@ -24,9 +24,9 @@ module.exports = function (options, callback) {
   }
   var order = {
     publicKey: keyPair.publicKey.toString('hex'),
-    signature: sign(message, keyPair.secretKey).toString('hex'),
     message
   }
+  crypto.sign(order, keyPair.secretKey, 'signature', 'message')
   mailgun.once('sent', function (message) {
     if (test) {
       test.equal(message.to, email, 'to address')

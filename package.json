@@ -1,8 +1,8 @@
 {
   "private": true,
   "dependencies": {
-    "@proseline/crypto": "^5.1.0",
-    "@proseline/schemas": "^1.0.0-pre.6",
+    "@proseline/crypto": "^6.0.0",
+    "@proseline/schemas": "^1.0.0",
     "ajv": "^6.10.0",
     "async": "^2.6.2",
     "aws-sdk": "^2.463.0",

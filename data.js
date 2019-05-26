@@ -100,19 +100,13 @@ exports.getProjectKeys = function (projectDiscoveryKey, callback) {
 
 exports.putProjectKeys = function (options, callback) {
   assert.strictEqual(typeof options, 'object')
+  assert.strictEqual(typeof options.replicationKey, 'string')
   assert.strictEqual(typeof options.projectDiscoveryKey, 'string')
-  assert.strictEqual(typeof options.replicationKeyCiphertext, 'string')
-  assert.strictEqual(typeof options.replicationKeyNonce, 'string')
   assert.strictEqual(typeof options.readKeyCiphertext, 'string')
   assert.strictEqual(typeof options.readKeyNonce, 'string')
-  assert.strictEqual(typeof options.writeSeedCiphertext, 'string')
-  assert.strictEqual(typeof options.writeSeedNonce, 'string')
-  assert.strictEqual(typeof options.titleCiphertext, 'string')
-  assert.strictEqual(typeof options.titleNonce, 'string')
   assert.strictEqual(typeof callback, 'function')
   var projectDiscoveryKey = options.projectDiscoveryKey
-  var replicationKeyCiphertext = options.replicationKeyCiphertext
-  var replicationKeyNonce = options.replicationKeyNonce
+  var replicationKey = options.replicationKeyCiphertext
   var readKeyCiphertext = options.readKeyCiphertext
   var readKeyNonce = options.readKeyNonce
   var writeSeedCiphertext = options.writeSeedCiphertext
@@ -120,8 +114,7 @@ exports.putProjectKeys = function (options, callback) {
   var titleCiphertext = options.titleCiphertext
   var titleNonce = options.titleNonce
   var record = {
-    replicationKeyCiphertext,
-    replicationKeyNonce,
+    replicationKey,
     readKeyCiphertext,
     readKeyNonce,
     writeSeedCiphertext,

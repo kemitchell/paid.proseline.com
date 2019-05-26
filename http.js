@@ -10,8 +10,10 @@ var keyserverProtocol = require('./keyserver-protocol')
 var parse = require('json-parse-errback')
 var pinoHTTP = require('pino-http')
 var pump = require('pump')
+var runParallel = require('run-parallel')
 var runSeries = require('run-series')
 var runWaterfall = require('run-waterfall')
+var schemas = require('@proseline/schemas')
 var send = require('./send')
 var simpleConcat = require('simple-concat')
 var stripe = require('./stripe')
@@ -61,6 +63,10 @@ module.exports = function (serverLog) {
     if (pathname === STYLESHEET) return styles(request, response)
     if (pathname === '/webhook') {
       if (method === 'POST') return webhook(request, response)
+      return respond405(request, response)
+    }
+    if (pathname === '/invite') {
+      if (method === 'POST') return invite(request, response)
       return respond405(request, response)
     }
     if (pathname === '/pull') {
@@ -790,6 +796,99 @@ function requestEncryptionKey (request, response) {
     response.statusCode = 500
     response.end(JSON.stringify({ error: 'server error' }))
   }
+}
+
+var validInvite = ajv.compile({
+  type: 'object',
+  properties: {
+    publicKey: {
+      type: 'string',
+      pattern: '^[a-f0-9]{64}$'
+    },
+    signature: {
+      type: 'string',
+      pattern: '^[0-9a-f]{128}$'
+    },
+    message: schemas.invitation
+  },
+  required: ['publicKey', 'signature', 'message'],
+  additionalProperties: false
+})
+
+function invite (request, response) {
+  var log = request.log
+  runWaterfall([
+    function (done) { concatLimit(request, 2048, done) },
+    parse
+  ], function (error, body) {
+    if (error) {
+      /* istanbul ignore else */
+      if (error.limit) {
+        request.pause()
+        response.statusCode = 413
+        return response.end()
+      } else {
+        log.error(error)
+        response.statusCode = 500
+        response.end()
+      }
+    }
+    // Validate the POST body.
+    if (!validInvite(body)) {
+      response.statusCode = 400
+      return response.end(JSON.stringify({ error: 'invalid invite' }))
+    }
+    if (!crypto.verify(body, body.publicKey, 'signature', 'message')) {
+      response.statusCode = 400
+      return response.end(JSON.stringify({ error: 'invalid signature' }))
+    }
+    log.info('valid invite')
+    var publicKey = body.publicKey
+    var message = body.message
+    var projectReplicationKey = message.replicationKey
+    ensureActiveSubscription(publicKey, function (error, email, subscription) {
+      if (error) return log.error(error)
+      if (!subscription) return log.info('no active subscription')
+      var projectDiscoveryKey = crypto.discoveryKey(projectReplicationKey)
+      log.info({ projectDiscoveryKey }, 'putting')
+      runParallel([
+        function (done) {
+          var options = Object.assign({}, message)
+          options.projectDiscoveryKey = projectDiscoveryKey
+          data.putProjectKeys(options, done)
+        },
+        function (done) {
+          data.putProjectUser(projectDiscoveryKey, email, done)
+        },
+        function (done) {
+          data.putUserProject(email, projectDiscoveryKey, done)
+        }
+      ], function (error) {
+        if (error) return log.error(error)
+        response.statusCode = 204
+        response.end()
+      })
+    })
+  })
+}
+
+function ensureActiveSubscription (publicKey, callback) {
+  data.getPublicKey(publicKey, function (error, record) {
+    if (error) return callback(error)
+    if (!record) return callback()
+    var email = record.email
+    data.getUser(email, function (error, user) {
+      if (error) return callback(error)
+      if (!user) return callback()
+      stripe.getActiveSubscription(
+        user.customerID,
+        function (error, subscription) {
+          if (error) return callback(error)
+          callback(null, email, subscription)
+        }
+      )
+    })
+  })
 }
 
 var validPull = ajv.compile(require('./schemas/pull'))

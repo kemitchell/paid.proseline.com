@@ -149,9 +149,9 @@
       "dev": true
     },
     "@proseline/crypto": {
-      "version": "5.1.0",
-      "resolved": "https://registry.npmjs.org/@proseline/crypto/-/crypto-5.1.0.tgz",
-      "integrity": "sha512-JlSaw39LHIcTy+dqLZUS5Qo4aZbTwlmx2RlFHql7SxCmssWwIAL0zIo+uGrob2EkL+wrAbxfUdElSnn9RqSQlg==",
+      "version": "6.0.0",
+      "resolved": "https://registry.npmjs.org/@proseline/crypto/-/crypto-6.0.0.tgz",
+      "integrity": "sha512-5VSuyP8++QBAf2VjQvjQQ39VhMb2Dw3W+vB2AbW/Yf807wteVng3HCp+W7y+vSNFlBolZfxeygRxJla5ofPSzA==",
       "requires": {
         "fast-json-stable-stringify": "^2.0.0",
         "nanoassert": "^2.0.0",
@@ -166,9 +166,9 @@
       }
     },
     "@proseline/schemas": {
-      "version": "1.0.0-pre.6",
-      "resolved": "https://registry.npmjs.org/@proseline/schemas/-/schemas-1.0.0-pre.6.tgz",
-      "integrity": "sha512-ZBD3waelftQVpFL3ObY3uKHgMnMkVmoRq1sZkvO1B2FAUS9Hg+tj/h4XTNIdf2WbBbUHQS7Nb0J2xUmejGIvWA=="
+      "version": "1.0.0",
+      "resolved": "https://registry.npmjs.org/@proseline/schemas/-/schemas-1.0.0.tgz",
+      "integrity": "sha512-C+GnkEybg0u3cA67hVz6MwTCotBkYdlrcgWsLclMvvjWX6xZDMdLVRvtz1KwPJXSR7NiQp9IPy06sy6JlmVy+Q=="
     },
     "abbrev": {
       "version": "1.0.9",
