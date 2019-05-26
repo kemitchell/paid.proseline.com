@@ -42,70 +42,70 @@ module.exports = function (serverLog) {
     // Unknown Projects
     var unknownProjects = new Set()
 
-    function addUnknownProject (discoveryKey) {
-      log.info({ discoveryKey }, 'adding unknown')
-      if (unknownProjects.has(discoveryKey)) return
-      unknownProjects.add(discoveryKey)
-      var eventName = `invitation:${discoveryKey}`
+    function addUnknownProject (projectDiscoveryKey) {
+      log.info({ projectDiscoveryKey }, 'adding unknown')
+      if (unknownProjects.has(projectDiscoveryKey)) return
+      unknownProjects.add(projectDiscoveryKey)
+      var eventName = `invitation:${projectDiscoveryKey}`
       events.addListener(eventName, onUnknownProject)
     }
 
-    function removeUnknownProject (discoveryKey) {
-      unknownProjects.delete(discoveryKey)
-      var eventName = `invitation:${discoveryKey}`
+    function removeUnknownProject (projectDiscoveryKey) {
+      unknownProjects.delete(projectDiscoveryKey)
+      var eventName = `invitation:${projectDiscoveryKey}`
       events.removeListener(eventName, onUnknownProject)
     }
 
     function onUnknownProject (data) {
-      var discoveryKey = data.discoveryKey
-      log.info({ discoveryKey }, 'invited to unknown')
-      replicateProject({ discoveryKey })
+      var projectDiscoveryKey = data.projectDiscoveryKey
+      log.info({ projectDiscoveryKey }, 'invited to unknown')
+      replicateProject({ projectDiscoveryKey })
     }
 
     function removeUnknownProjectListeners () {
-      Array.from(unknownProjects).forEach(function (discoveryKey) {
-        var eventName = `project:${discoveryKey}`
+      Array.from(unknownProjects).forEach(function (projectDiscoveryKey) {
+        var eventName = `project:${projectDiscoveryKey}`
         events.removeListener(eventName, onUnknownProject)
       })
     }
 
     // Replication Streams
-    plex.on('stream', function (receiveStream, discoveryKey) {
+    plex.on('stream', function (receiveStream, projectDiscoveryKey) {
       var transport = duplexify(
-        plex.createStream(discoveryKey),
+        plex.createStream(projectDiscoveryKey),
         receiveStream
       )
-      replicateProject({ discoveryKey, transport })
+      replicateProject({ projectDiscoveryKey, transport })
     })
 
     function replicateProject (options) {
-      var discoveryKey = options.discoveryKey
+      var projectDiscoveryKey = options.projectDiscoveryKey
       var transport = options.transport
       if (!transport) {
         // Create and duplexify send and receive streams to avoid
         // createSharedStream, which creates lazy send streams.
         transport = duplexify(
-          plex.createStream(discoveryKey),
-          plex.receiveStream(discoveryKey)
+          plex.createStream(projectDiscoveryKey),
+          plex.receiveStream(projectDiscoveryKey)
         )
       }
-      var childLog = log.child({ protocol: 'replication', discoveryKey })
-      streams.set(discoveryKey, transport)
-      data.getProjectKeys(discoveryKey, function (error, keys) {
+      var childLog = log.child({ protocol: 'replication', projectDiscoveryKey })
+      streams.set(projectDiscoveryKey, transport)
+      data.getProjectKeys(projectDiscoveryKey, function (error, keys) {
         if (error) {
           childLog.error(error)
           return destroy()
         }
         if (!keys) {
-          addUnknownProject(discoveryKey)
+          addUnknownProject(projectDiscoveryKey)
           return destroy()
         }
-        removeUnknownProject(discoveryKey)
+        removeUnknownProject(projectDiscoveryKey)
         var replicationKey = keys.replicationKey
         var writeSeed = keys.writeSeed
         childLog.info('replicating')
         var replicationProtocol = makeReplicationStream({
-          replicationKey, discoveryKey, writeSeed, log: childLog
+          replicationKey, projectDiscoveryKey, writeSeed, log: childLog
         })
         replicationProtocol
           .on('error', function (error) {
@@ -126,7 +126,7 @@ module.exports = function (serverLog) {
           childLog.info('destroying')
           if (replicationProtocol) replicationProtocol.destroy()
           transport.destroy()
-          streams.delete(discoveryKey)
+          streams.delete(projectDiscoveryKey)
         }
       })
     }
@@ -183,26 +183,26 @@ function makeInvitationStream (options) {
     ensureActiveSubscription(publicKey, function (error, email, subscription) {
       if (error) return log.error(error)
       if (!subscription) return log.info('no active subscription')
-      var discoveryKey = hashHexString(replicationKey)
-      log.info({ discoveryKey }, 'putting')
+      var projectDiscoveryKey = hashHexString(replicationKey)
+      log.info({ projectDiscoveryKey }, 'putting')
       runParallel([
         function (done) {
           data.putProjectKeys({
-            discoveryKey, replicationKey, writeSeed, title
+            projectDiscoveryKey, replicationKey, writeSeed, title
           }, done)
         },
         function (done) {
-          data.putProjectUser(discoveryKey, email, done)
+          data.putProjectUser(projectDiscoveryKey, email, done)
         },
         function (done) {
-          data.putUserProject(email, discoveryKey, done)
+          data.putUserProject(email, projectDiscoveryKey, done)
         }
       ], function (error) {
         if (error) return log.error(error)
-        var data = { email, discoveryKey }
+        var data = { email, projectDiscoveryKey }
         log.info('emitting events')
         events.emit(`invitation:${email}`, data)
-        events.emit(`invitation:${discoveryKey}`, data)
+        events.emit(`invitation:${projectDiscoveryKey}`, data)
       })
     })
   })
@@ -219,15 +219,15 @@ function makeInvitationStream (options) {
       if (!subscription) return log.info('no active subscription')
       eventName = `invitation:${email}`
       events.addListener(eventName, onInvitationEvent)
-      data.listUserProjects(email, function (error, discoveryKeys) {
+      data.listUserProjects(email, function (error, projectDiscoveryKeys) {
         if (error) return log.error(error)
-        discoveryKeys.forEach(sendInvitation)
+        projectDiscoveryKeys.forEach(sendInvitation)
       })
     })
   })
 
-  function sendInvitation (discoveryKey) {
-    data.getProjectKeys(discoveryKey, function (error, keys) {
+  function sendInvitation (projectDiscoveryKey) {
+    data.getProjectKeys(projectDiscoveryKey, function (error, keys) {
       if (error) return log.error(error)
       var invitation = {
         message: {
@@ -250,13 +250,13 @@ function makeInvitationStream (options) {
       invitation.signature = signature.toString('hex')
       returned.invitation(invitation, function (error) {
         if (error) return log.error(error)
-        log.info({ discoveryKey }, 'sent invitation')
+        log.info({ projectDiscoveryKey }, 'sent invitation')
       })
     })
   }
 
   function onInvitationEvent (message) {
-    sendInvitation(message.discoveryKey)
+    sendInvitation(message.projectDiscoveryKey)
   }
 
   returned.once('close', function () {
@@ -279,16 +279,16 @@ function makeReplicationStream (options) {
   assert.strictEqual(typeof options, 'object')
   assert.strictEqual(typeof options.replicationKeyCiphertext, 'string')
   assert.strictEqual(typeof options.replicationKeyNonce, 'string')
-  assert.strictEqual(typeof options.discoveryKey, 'string')
+  assert.strictEqual(typeof options.projectDiscoveryKey, 'string')
   assert.strictEqual(typeof options.writeSeedCiphertext, 'string')
   assert.strictEqual(typeof options.writeSeedNonce, 'string')
   assert(options.log)
   var replicationKeyCiphertext = options.replicationKeyCiphertext
   var replicationKeyNonce = options.replicationKeyNonce
-  var discoveryKey = options.discoveryKey
+  var projectDiscoveryKey = options.projectDiscoveryKey
   var writeSeedCiphertext = options.writeSeedCiphertext
   var writeSeedNonce = options.writeSeedNonce
-  var log = options.log.child({ discoveryKey })
+  var log = options.log.child({ projectDiscoveryKey })
 
   // For each log, track the highest index that we believe our
   // peer has, and use it to avoid sending unnecessary offers.
@@ -316,7 +316,7 @@ function makeReplicationStream (options) {
     seed: Buffer.from(writeSeed, 'hex')
   })
 
-  var eventName = `project:${discoveryKey}`
+  var eventName = `project:${projectDiscoveryKey}`
   events.addListener(eventName, onEnvelopeEvent)
 
   returned.once('handshake', function () {
@@ -326,14 +326,14 @@ function makeReplicationStream (options) {
       if (error) return log.error(error)
       log.info('sent handshake')
     })
-    data.listProjectPublicKeys(discoveryKey, function (error, publicKeys) {
+    data.listProjectPublicKeys(projectDiscoveryKey, function (error, publicKeys) {
       if (error) return log.error(error)
       log.info({ publicKeys }, 'public keys')
       publicKeys.forEach(function (publicKey) {
-        data.getLastIndex(discoveryKey, publicKey, function (error, index) {
+        data.getLastIndex(projectDiscoveryKey, publicKey, function (error, index) {
           if (error) return log.error(error)
           if (index === undefined) {
-            return log.error({ discoveryKey, publicKey }, 'no envelopes')
+            return log.error({ projectDiscoveryKey, publicKey }, 'no envelopes')
           }
           log.info({ publicKey, index }, 'last index')
           sendOffer({ publicKey, index })
@@ -357,7 +357,7 @@ function makeReplicationStream (options) {
     var publicKey = reference.publicKey
     var index = reference.index
     data.getEnvelope(
-      discoveryKey, publicKey, index,
+      projectDiscoveryKey, publicKey, index,
       function (error, envelope) {
         if (error) return done(error)
         if (!envelope) return done()
@@ -378,7 +378,7 @@ function makeReplicationStream (options) {
     var publicKey = reference.publicKey
     var offeredIndex = reference.index
     advancePeerHead(reference)
-    data.getLastIndex(discoveryKey, publicKey, function (error, last) {
+    data.getLastIndex(projectDiscoveryKey, publicKey, function (error, last) {
       if (error) return log.error(error)
       if (last === undefined) last = -1
       log.info({ publicKey, last }, 'last index')
@@ -419,23 +419,23 @@ function makeReplicationStream (options) {
     var index = envelope.message.index
     log.info({ publicKey, index }, 'received envelope')
     advancePeerHead({ publicKey, index })
-    if (envelope.message.project !== discoveryKey) {
+    if (envelope.message.project !== projectDiscoveryKey) {
       return log.error({ publicKey, index }, 'project mismatch')
     }
     log.info({ publicKey, index }, 'putting envelope')
     if (index === 0) {
       data.putProjectPublicKey(
-        discoveryKey, publicKey,
+        projectDiscoveryKey, publicKey,
         function (error) {
           if (error) return log.error(error)
-          log.info({ discoveryKey, publicKey }, 'put public key')
+          log.info({ projectDiscoveryKey, publicKey }, 'put public key')
         }
       )
     }
     data.putEnvelope(envelope, function (error) {
       if (error) return log.error(error)
       log.info({ publicKey, index }, 'put envelope')
-      events.emit(`project:${discoveryKey}`, { publicKey, index })
+      events.emit(`project:${projectDiscoveryKey}`, { publicKey, index })
     })
   })
 
