@@ -2,7 +2,7 @@ The Parity Public License 6.0.0
 
 Contributor: Kyle E. Mitchell
 
-Source Code: https://github.com/kemitchell/proseline.com
+Source Code: https://github.com/kemitchell/paid.proseline.com
 
 This license lets you use and share this software for free, as
 long as you contribute software you make with it. Specifically:
