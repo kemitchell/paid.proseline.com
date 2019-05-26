@@ -75,7 +75,7 @@ tape('PUT /encryptionkey', function (test) {
   })
 })
 
-tape.skip('POST /encryptionkey with huge body', function (test) {
+tape('POST /encryptionkey with huge body', function (test) {
   server(function (port, done) {
     var request = http.request({
       method: 'POST',

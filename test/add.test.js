@@ -54,7 +54,7 @@ tape('PUT /add', function (test) {
   })
 })
 
-tape.skip('POST /add with huge body', function (test) {
+tape('POST /add with huge body', function (test) {
   server(function (port, done) {
     var request = http.request({
       method: 'POST',
