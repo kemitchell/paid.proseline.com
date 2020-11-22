@@ -34,7 +34,7 @@ The WebSocket server replicates project data using the same protocol as the clie
 
 The server persists data to an S3-compatible API.
 
-The server relies heavily on `listObjects` calls with `Delimiter`, `Prefix`, and `MaxKeys` arguments, in effect "indexing" multiple unique keys by path-like prefixes.
+The server relies heavily on `listObjects` calls with `Delimiter`, `Prefix`, and `MaxKeys` arguments, in effect "indexing" multiple unique keys by path-like prefixes.  When order is important, as for the envelopes in a log, their key suffixes maintain lexical order.  Index `1` becomes suffix `000000000000001`.
 
 For example, `listObjects(Delimiter="/", Prefix="projects/{discovery key}/logPublicKeys/")` yields a list of logs for a project, and `listObjects(Delimiter="/", Prefix="projects/{discovery key}/envelopes/{log public key}/")` yields a list of envelopes in a log.
 
@@ -48,7 +48,7 @@ projects/{discovery key}/
   users/{e-mail address}
     -> date
   logPublicKeys/{log public key}
-  envelopes/{log public key}/{index}
+  envelopes/{log public key}/{15-digit, zero-padded index}
     -> envelope
 
 users/{e-mail address}
