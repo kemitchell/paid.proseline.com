@@ -29,3 +29,41 @@ The WebSocket server replicates project data using the same protocol as the clie
 - `POST /cancel`:  Request an e-mail with a link to cancel a subscription.  The links takes the form `/cancel?capability={capability}`.
 
 - `GET /cancel`:  Confirm cancellation of a subscription.
+
+## Data Layout
+
+The server persists data to an S3-compatible API.
+
+The server relies heavily on `listObjects` calls with `Delimiter`, `Prefix`, and `MaxKeys` arguments, in effect "indexing" multiple unique keys by path-like prefixes.
+
+For example, `listObjects(Delimiter="/", Prefix="projects/{discovery key}/logPublicKeys/")` yields a list of logs for a project, and `listObjects(Delimiter="/", Prefix="projects/{discovery key}/envelopes/{log public key}/")` yields a list of envelopes in a log.
+
+```
+projects/{discovery key}/
+  keys
+    -> project discovery key
+    -> replicaton key
+    -> read key ciphertext
+    -> read key nonce
+  users/{e-mail address}
+    -> date
+  logPublicKeys/{log public key}
+  envelopes/{log public key}/{index}
+    -> envelope
+
+users/{e-mail address}
+  -> Object
+  projects/{discovery key}
+
+clientPublicKeys/{client public key}
+  -> date
+
+capabilities/{capability}
+  -> Object
+  -> date
+  -> e-mail address
+  -> customer ID
+
+webhooks/{id}
+  -> message
+```
